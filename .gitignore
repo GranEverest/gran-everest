@@ -1,0 +1,41 @@
+# ===== Secretos (en cualquier carpeta) =====
+**/.env
+**/.env.local
+**/.env.*.local
+*.secret
+*.keystore
+
+# ===== Node / logs =====
+**/node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# ===== SO / editores =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ===== Next.js (web) =====
+/web/.next/
+/web/out/
+/web/.vercel/
+
+# ===== Hardhat / Solidity (contracts) =====
+/contracts/artifacts/
+/contracts/cache/
+/contracts/typechain/
+/contracts/typechain-types/
+/contracts/coverage/
+/contracts/coverage.json
+/contracts/deployments/
+/contracts/broadcast/
+
+# ===== Builds genéricos =====
+**/dist/
+**/build/
+
+# (opcional) zips locales para subir a hosting
+/web/*.zip

@@ -1,0 +1,99 @@
+/* /web/app/globals.css */
+
+/* Sistema de tema por variables (funciona con html.dark) */
+:root {
+  /* Light por defecto (cuando NO hay .dark en <html>) */
+  --bg: #ffffff;
+  --fg: #111111;
+  --panel: rgba(0, 0, 0, 0.04);
+  --border: #c8c8c8;
+  --muted: rgba(0, 0, 0, 0.08);
+}
+
+html.dark {
+  --bg: #0b0b0b;
+  --fg: #eaeaea;
+  --panel: rgba(255, 255, 255, 0.04);
+  --border: #444;
+  --muted: rgba(255, 255, 255, 0.08);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+}
+
+/* ===== Estilos namespaced para la app (no deberían afectar landing si no usa .ge-*) */
+.ge-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: transparent; color: var(--fg); cursor: pointer; text-decoration: none;
+}
+.ge-btn:hover { background: var(--muted); }
+.ge-btn.small { padding: 4px 8px; font-size: 0.85rem; }
+
+.ge-rect {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: transparent; color: var(--fg);
+}
+
+.ge-dot { display: inline-block; width: 12px; height: 12px; border-radius: 999px; background: var(--fg); }
+
+.ge-bar { width: 100%; height: 8px; background: var(--muted); border-radius: 6px; overflow: hidden; }
+.ge-bar > span { display: block; height: 100%; }
+
+.ge-range { width: 100%; }
+
+.ge-page-footer { text-align: center; padding: 2rem 0; opacity: .7; }
+
+.ge-logo { font-weight: 700; letter-spacing: .3px; color: var(--fg); }
+
+.ge-input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  padding: 8px 12px;
+  width: 100%;
+}
+
+input::placeholder { color: rgba(127,127,127,.8); }
+/* ─── Everest ASCII Mountain (tuning) ───────────────────────────────────── */
+
+.ge-mountain-wrap{
+  max-width: 1100px;
+  margin: 2.1rem auto 2rem;
+  overflow: hidden;            /* 🔒 elimina cualquier scrollbar del bloque */
+}
+
+.ge-mountain{
+  display: block;
+  white-space: pre;            /* respeta el ASCII */
+  user-select: none;
+  margin: 0 auto;
+  max-width: 100%;
+  /* tamaño apenas más chico */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: clamp(6px, 0.68vw, 8px);
+  line-height: 0.68em;
+  letter-spacing: 0.35px;
+
+  /* En Light el contraste queda como te gusta */
+  color: #222;
+  opacity: 0.96;
+  filter: none;
+}
+
+/* En Dark bajamos un poco el contraste */
+:root.dark .ge-mountain{
+  color: #d6d6d6;              /* no puro blanco */
+  opacity: 0.88;
+  filter: contrast(0.95) brightness(0.95);
+}
+
+/* Oculta scrollbars internas por si algún padre trae overflow */
+.ge-mountain-wrap *::-webkit-scrollbar { display:none; width:0; height:0; }

@@ -1,0 +1,29 @@
+{
+  "name": "gran-everest-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.1.1",
+    "@types/node": "^20.11.0",
+    "chai": "^4.4.1",
+    "hardhat": "^2.26.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.6",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.15.0"
+  },
+  "scripts": {
+    "clean": "hardhat clean",
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:baseSepolia": "hardhat run --network baseSepolia scripts/deployEverestVault.ts",
+    "verify:baseSepolia": "hardhat verify --network baseSepolia",
+    "export:abi": "node scripts/exportAbi.cjs",
+    "slither": "slither . --compile-force-framework hardhat --filter-paths \"node_modules|cache|artifacts\""
+  }
+}
