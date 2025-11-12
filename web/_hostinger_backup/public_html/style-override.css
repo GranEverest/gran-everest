@@ -1,0 +1,14 @@
+/* Forzar dark + base */
+html,body{background:#0f0f0f!important;color:#e7e7e7!important}
+a{color:#8b5cf6} a:hover{opacity:.85}
+
+/* Montaña (los valores guardados) */
+.ge-mountain-wrap{max-width:1100px;margin:2.1rem auto 2rem;overflow:hidden}
+.ge-mountain{font-size:clamp(6px,.68vw,8px);line-height:.68em;letter-spacing:.35px;color:#d6d6d6;opacity:.88;filter:contrast(.95) brightness(.95)}
+.ge-mountain-wrap *::-webkit-scrollbar{display:none;width:0;height:0}
+
+/* Card centrada y controles */
+.ge-card{max-width:420px;margin:0 auto;padding:16px;border-radius:16px;border:1px solid #222;background:#111;box-shadow:0 0 0 1px #000 inset}
+.ge-input,input[type=text],input[type=number]{background:#1a1a1a;border:1px solid #2a2a2a;color:#eaeaea;border-radius:6px}
+.ge-range,input[type=range]{accent-color:#8b5cf6}
+.ge-btn,button{background:#efefef;color:#111;border:1px solid #333;border-radius:8px;padding:6px 10px}

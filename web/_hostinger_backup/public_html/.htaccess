@@ -1,0 +1,34 @@
+# Usa index.html por defecto
+DirectoryIndex index.html
+
+RewriteEngine On
+RewriteBase /
+
+### 1) Canonical: HTTPS + sin www
+RewriteCond %{HTTP_HOST} ^www\.graneverest\.com$ [NC,OR]
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://graneverest.com/$1 [R=301,L]
+
+### 2) Si la ruta es un directorio real y NO termina con "/", agregarlo
+# (ej: /borrow -> /borrow/ para servir /borrow/index.html)
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteCond %{REQUEST_URI} !/$
+RewriteRule ^(.+)$ $1/ [R=301,L]
+
+### 3) Caché agresiva para assets estáticos (Next)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2|svg|png|jpg|jpeg|gif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+### 4) Seguridad mínima (oculta dotfiles y .env)
+<FilesMatch "^(\.|.*\.env)">
+  Require all denied
+</FilesMatch>
+
+### 5) Fallback SPA: si no existe archivo ni carpeta, servir index.html
+# (no afecta sitemap.xml, robots.txt, _next/* porque sí existen)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
