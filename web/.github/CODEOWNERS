@@ -1,0 +1,4 @@
+﻿# Rutas → owners
+/web/*                 @GranEverest
+/contracts/*           @GranEverest
+/gran-repo/public_html/* @GranEverest
