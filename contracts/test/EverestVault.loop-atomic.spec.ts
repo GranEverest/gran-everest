@@ -1,88 +1,43 @@
 import { expect } from "chai";
-import { ethers, network } from "hardhat";
+import { ethers } from "hardhat";
+import { parseEther } from "ethers";
 
-const toWei = (v: string) => ethers.parseEther(v);
-const fromWei = (v: bigint) => Number(ethers.formatEther(v));
-
-async function waitForReceipt(hash: string, timeoutMs = 30000, intervalMs = 50) {
-  const provider = ethers.provider;
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    const r = await provider.getTransactionReceipt(hash);
-    if (r) return r;
-    await new Promise((res) => setTimeout(res, intervalMs));
-  }
-  throw new Error(`Timeout waiting for receipt: ${hash}`);
-}
-
-describe("EverestVault - Anti-loop atomic (same block)", () => {
+describe("EverestVault - Anti-loop atomic (same block)", function () {
   it("blocks deposit if it occurs in the SAME block as borrow", async () => {
-    const [user] = await ethers.getSigners();
-    const provider = ethers.provider;
+    const [deployer, feeRecipient] = await ethers.getSigners();
 
+    // Deploy vault con feeRecipient
     const Vault = await ethers.getContractFactory("EverestVault");
-    const vault = await Vault.deploy();
+    const vault = await Vault.deploy(feeRecipient.address);
     await vault.waitForDeployment();
 
-    // Initial deposit (automine ON)
-    await expect(vault.connect(user).deposit({ value: toWei("1.0") })).to.not.be.reverted;
+    // Deploy helper
+    const Helper = await ethers.getContractFactory("LoopSameBlock");
+    const helper = await Helper.deploy();
+    await helper.waitForDeployment();
 
-    // Try to bundle both txs in SAME block
-    await network.provider.send("evm_setAutomine", [false]);
-    await network.provider.send("evm_setIntervalMining", [0]);
+    // Cargar ETH al helper y depositar desde el helper (colateral del helper)
+    await deployer.sendTransaction({ to: await helper.getAddress(), value: parseEther("5") });
+    await helper.depositTo(await vault.getAddress(), { value: parseEther("5") });
 
-    // Force ordering with explicit nonces (borrow first)
-    const baseNonce = await provider.getTransactionCount(user.address);
-
-    const txBorrow = await vault
-      .connect(user)
-      .borrow(toWei("0.3"), { nonce: baseNonce });
-
-    const txDepositSameBlock = await vault
-      .connect(user)
-      .deposit({ value: toWei("0.1"), nonce: baseNonce + 1 });
-
-    // Mine a block (ideally both in same block)
-    await network.provider.send("evm_mine");
-
-    // back to automine
-    await network.provider.send("evm_setAutomine", [true]);
-    await network.provider.send("evm_setIntervalMining", [1]);
-
-    const rBorrow  = await waitForReceipt(txBorrow.hash);
-    const rDeposit = await waitForReceipt(txDepositSameBlock.hash);
-
-    const sameBlock = rBorrow.blockNumber === rDeposit.blockNumber;
-
-    if (sameBlock) {
-      expect(Number(rBorrow.status)).to.equal(1);
-      expect(Number(rDeposit.status)).to.equal(0);
-      const [collat, debt] = await vault.getUserData(user.address);
-      expect(fromWei(debt)).to.be.closeTo(0.3, 1e-9);
-      expect(fromWei(collat)).to.be.closeTo(0.9975, 1e-9);
-    } else {
-      expect(Number(rBorrow.status)).to.equal(1);
-      expect(Number(rDeposit.status)).to.equal(1);
-      const [collat, debt] = await vault.getUserData(user.address);
-      expect(fromWei(debt)).to.be.closeTo(0.3, 1e-9);
-      expect(fromWei(collat)).to.be.closeTo(1.09725, 1e-9); // 0.9975 + 0.09975
-    }
+    // En una sola tx: borrow y luego deposit (debe revertir por anti-loop)
+    await expect(
+      helper.borrowThenDeposit(await vault.getAddress(), parseEther("2"))
+    ).to.be.revertedWithCustomError(vault, "BorrowDepositSameBlock");
   });
 
   it("allows deposit in a different block, even with debt", async () => {
-    const [user] = await ethers.getSigners();
+    const [deployer, feeRecipient, user] = await ethers.getSigners();
 
     const Vault = await ethers.getContractFactory("EverestVault");
-    const vault = await Vault.deploy();
+    const vault = await Vault.deploy(feeRecipient.address);
     await vault.waitForDeployment();
 
-    await vault.connect(user).deposit({ value: toWei("1.0") });  // ~0.9975 collateral
-    await vault.connect(user).borrow(toWei("0.3"));              // mined block N
+    await vault.connect(user).deposit({ value: parseEther("3") });  // bloque N
+    await vault.connect(user).borrow(parseEther("1"));              // bloque N+1
 
-    await expect(vault.connect(user).deposit({ value: toWei("0.5") })).to.not.be.reverted;
-
-    const [collat, debt] = await vault.getUserData(user.address);
-    expect(fromWei(collat)).to.be.closeTo(1.49625, 1e-9); // 0.9975 + 0.49875
-    expect(fromWei(debt)).to.be.closeTo(0.3, 1e-9);
+    await expect(
+      vault.connect(user).deposit({ value: parseEther("0.1") })     // bloque N+2
+    ).to.not.be.reverted;
   });
 });

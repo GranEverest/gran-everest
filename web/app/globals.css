@@ -1,0 +1,101 @@
+/* /web/app/globals.css */
+
+/* === Sistema de tema (html.dark activa dark) =============================== */
+:root{
+  /* Light (por defecto) */
+  --bg:#ffffff;
+  --fg:#111111;
+  --panel:rgba(0,0,0,0.04);
+  --border:#e5e5e5;
+  --muted:rgba(0,0,0,0.10);
+  --fg-muted:#555; /* secundarios en light */
+}
+
+html.dark{
+  /* Dark con más contraste (como en tus capturas buenas) */
+  --bg:#0f0f0f;
+  --fg:#f2f2f2;     /* más claro (antes se veía gris lavado) */
+  --panel:rgba(255,255,255,0.05);
+  --border:#2a2a2a;
+  --muted:rgba(255,255,255,0.08);
+  --fg-muted:#bdbdbd; /* secundarios en dark */
+}
+
+*{ box-sizing:border-box }
+html,body{ margin:0; padding:0 }
+body{
+  background:var(--bg);
+  color:var(--fg);
+  font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+}
+
+/* === Componentes “ge-*” ==================================================== */
+.ge-btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border:1px solid var(--border); border-radius:12px;
+  background:transparent; color:var(--fg); cursor:pointer; text-decoration:none;
+}
+.ge-btn.small{ padding:4px 10px; font-size:.9rem }
+.ge-btn:hover{ background:var(--muted) }
+
+.ge-rect{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 12px; border:1px solid var(--border); border-radius:12px;
+  background:transparent; color:var(--fg);
+}
+
+.ge-input{
+  border:1px solid var(--border); border-radius:10px;
+  background:transparent; color:var(--fg);
+  padding:10px 12px; width:100%;
+}
+input::placeholder{ color:var(--fg-muted) }
+
+.ge-dot{ width:12px; height:12px; border-radius:999px; background:var(--fg); display:inline-block }
+.ge-bar{ width:100%; height:8px; background:var(--muted); border-radius:6px; overflow:hidden }
+.ge-bar>span{ display:block; height:100% }
+.ge-range{ width:100% }
+
+.ge-page-footer{ text-align:center; padding:2rem 0; opacity:.75 }
+.ge-logo{ font-weight:700; letter-spacing:.3px; color:var(--fg) }
+
+.small{ color:var(--fg-muted); font-size:.94rem }
+
+/* === Everest ASCII Mountain (idéntica a producción) ======================= */
+.ge-mountain-wrap{
+  max-width:1100px;
+  margin:2.1rem auto 1.2rem;
+  text-align:center;
+  overflow:hidden; /* sin scrollbars */
+}
+.ge-mountain{
+  display:inline-block;
+  white-space:pre;  /* respeta ASCII */
+  user-select:none; margin:0 auto; max-width:100%;
+  font-family:ui-monospace,Consolas,Menlo,Monaco,monospace;
+  font-size:clamp(6px,0.68vw,8px);
+  line-height:.68em; letter-spacing:.35px;
+  color:#d6d6d6;  /* gris claro equilibrado */
+  opacity:.92;
+}
+html:not(.dark) .ge-mountain{ color:#222; opacity:.96; filter:none }
+
+/* Oculta scrollbars internas si algún contenedor trae overflow */
+.ge-mountain-wrap *::-webkit-scrollbar{ display:none; width:0; height:0 }
+
+/* ===== Banners/guards ====================================================== */
+.ge-banner{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:.75rem; padding:.75rem 1rem; border-radius:.9rem;
+  border:1px solid #ff9c9c; background:#ffe9e9; color:#7a1212; margin:1rem 0;
+}
+html.dark .ge-banner{ background:#2b1a1a; color:#ffd2d2; border-color:#b35b5b }
+.ge-banner-btn{
+  padding:.5rem .85rem; border-radius:.7rem; border:1px solid currentColor;
+  background:transparent; cursor:pointer; font-size:.92rem;
+}
+.ge-disabled{ pointer-events:none; opacity:.55; filter:grayscale(.2) }
+
+/* Network guard */
+.ge-banner-net{ border-color:#f5cc7a; background:#fff4dc; color:#7a4f0d }
+html.dark .ge-banner-net{ background:#2a2212; color:#ffdca0; border-color:#a37b2c }

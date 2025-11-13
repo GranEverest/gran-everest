@@ -1,19 +1,17 @@
 import { ethers } from "hardhat";
-import "dotenv/config";
 
 async function main() {
-  const feeRecipient = process.env.FEE_RECIPIENT;
-  if (!feeRecipient) throw new Error("Falta FEE_RECIPIENT en .env");
+  const [deployer, maybeTreasury] = await ethers.getSigners();
 
-  console.log("Deploying EverestVault on Base…");
-  console.log("feeRecipient:", feeRecipient);
+  const feeRecipient = process.env.FEE_RECIPIENT ?? maybeTreasury.address;
+  console.log("Deployer:", deployer.address);
+  console.log("Fee recipient:", feeRecipient);
 
-  const Vault = await ethers.getContractFactory("EverestVault");
-  const vault = await Vault.deploy(feeRecipient); // <-- PASA EL ARGUMENTO
+  const Factory = await ethers.getContractFactory("EverestVault");
+  const vault = await Factory.deploy(feeRecipient);
   await vault.waitForDeployment();
 
-  const address = await vault.getAddress();
-  console.log("EverestVault deployed at:", address);
+  console.log("EverestVault deployed to:", await vault.getAddress());
 }
 
 main().catch((e) => {
