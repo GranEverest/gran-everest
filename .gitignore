@@ -23,3 +23,6 @@ gran-everest/
 .DS_Store
 Thumbs.db
 .vscode/
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
