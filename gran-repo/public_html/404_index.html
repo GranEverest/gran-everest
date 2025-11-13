@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>404 — GranEverest</title>
+
+  <script>
+    (function () {
+      try {
+        const saved = localStorage.getItem('geTheme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+      } catch (_) {}
+    })();
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png">
+  <link rel="manifest" href="/assets/manifest.webmanifest">
+  <meta name="theme-color" content="#0f0f0f">
+
+  <style>
+    :root{--bg:#0f0f0f;--text:#e7e7e7;--muted:#bdbdbd;--card:#111;--border:#222;
+      --btn-bg:#fff;--btn-fg:#111;--brand:var(--text);--mountain:#d6d6d6}
+    html[data-theme="light"]{--bg:#fff;--text:#111;--muted:#666;--card:#fafafa;--border:#e5e5e5;
+      --btn-bg:#fff;--btn-fg:#111;--brand:#111;--mountain:#333}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:var(--text);text-decoration:none}
+
+    .nav{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:flex-end;
+      padding:12px 16px;background:var(--bg)}
+    .brand{margin-right:auto;color:var(--brand)!important;font-weight:600;text-decoration:none}
+    .pill{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:12px;
+      border:1px solid var(--border);background:var(--btn-bg);color:var(--btn-fg)!important;font-size:14px;line-height:1;cursor:pointer}
+
+    .wrap{max-width:980px;margin:0 auto;padding:12px 20px 110px;text-align:center}
+    .ge-mountain-wrap{max-width:1100px;margin:1.6rem auto .75rem;overflow-x:auto;overflow-y:hidden}
+    .ge-mountain-wrap::-webkit-scrollbar{display:none;width:0;height:0}
+    .ge-mountain{font-family:ui-monospace,Consolas,Menlo,monospace;display:inline-block;white-space:pre;
+      font-size:clamp(2.6px,.65vw,8px);line-height:.68em;letter-spacing:.28px;color:var(--mountain);opacity:.95}
+    .card{max-width:520px;margin:0.4rem auto;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+    .muted{color:var(--muted)}
+    .footer{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/">GranEverest</a>
+    <a class="pill" href="/">Launch app</a>
+    <button id="themeToggle" class="pill" type="button">Light</button>
+  </nav>
+
+  <main class="wrap">
+    <section class="ge-mountain-wrap" aria-hidden="true"><pre class="ge-mountain">
+             +           
+                         =+                        
+                                                                                   ===-                                                                                   
+                                                                                  =+=----                                                                                 
+                                                                                +++++---=--                                                                              
+                                                                               ++**++--=-=-=                                                                             
+                                                                             ++++++*=---==-=-                                                                           
+                                                                            +++++***+--------=-                                                                         
+                                                                          +++++******=---------=                                                                        
+                                                                         ++++++******+=----------                                                                       
+                                                                        ++*+++*+******=--------=--=                                                                     
+                                                                      +++++**********+-----==------=                                                                    
+                                                                     ++**+********++=-=----------------                                                                 
+                                                                   =++**+*****+**+=---==------==-------=                                                                
+                                                                 =++++*#***********---=-==-----==------=-=                                                               
+                                                                ++++*****++*#+***#**=-----=---=--===----=--                                                              
+                                                               ++**+*+++******####*++=-----=-----=-==------=                                                             
+                                                              ++*#**++**+*######*+--===-----=------===-------                                                            
+                                                            =++***++*############=---===-----==---=-===--=--==                                                           
+                                                          ++++***+######**#+###**=----=-=-----===----===--==---=                                                         
+                                                         ++*+****######**+*##**###+-----==------==-----==--=-=----                                                        
+                                                    +++++++*#*+#######*++###**#####*--------------++-----======+=----=                                                   
+                                                 +++++++*++**+#######+**###*+#*######*=----------=-=+--==--=-===+=--=+=-=-                                              
+                                                +#++++**+++++*###*##+#####***###########-----------===---=---====++++++---==                                             
+                                              ++**#+=++=++++#**##**+####*#**#############=---------===+---=-====+*+++++=-----                                           
+                                            ++*#******+++++**#*#+++#####*+#####*###########+--------===+=-----=++++++++==-----=                                          
+                                           ***++#####*##**+*++*++####*#***######*##*########--------=-====-----=+++=++#+++=----=                                         
+                                          ++++**########++++++*####***+**####*##############=---=-------===------==+++**+++++-----                                       
+                                      +++*+++++###++##*++=+++#####*##+*###*###*##*##########+---==+++=---==-------=+++++++++=+=--===                                     
+                                    *#*=-==+++=+++*+=++==+++#####+*++*#####*+*########%##%#++----=++*=-----=--------=+*+++++=++=---==-                                    
+                                   *###+-----==+++++====+**####+*++++*#++#++++######%##==---=------=+++=-----==-=----=+++=+++++++----=-=                                  
+                                 ######++=---------==++++++**++**+*+**+++++**########*##------------=++===------=---=--=++==+=++===--=+=--                                 
+                               +######***#+---=+=--=--====+++++++*+**+++++*#########++###=----------===++=-----------===-====+=+++=-----====                              
+                             +##########*+++*+==++--===--==++**++++++++++######*++==++*+--+-------===-=++++===--------==+=-=+==++=++------==-=                            
+                           *##*##########**+##+-++++----=---===+++++++*########+-----------+*=---=-=++=-+++*+*+=-----=--==+===*+=+++++---------                           
+                          ################**###*=-=+++==-===---=++++*###########+-----------=+*+-----==++=++*+++=---------=+=--=+++=++++----==---=                        
+                        *#######*#########*+*###*=--==++=+-==+==+++++++**########+----=----==-+**+=--=--++****#***+---------===-==+++=+++=--====-==                       
+                       *####*+*#####*+#####+=+####+=--==++++==+*+++++=++###########=--+++----=++##*+--+===+##**####*#*#=--------=--=+++=+++---======                      
+                      ###############++###*#+++###++++=-==++*++++==+###########%#%##%+-++**+==-=++###+=+#++++*#####*###**#=--===-----=-++++++--==++==                     
+                    #####**###########*++#####++*###++*#*+===+==*##########%#%%##%#####+=+=##+=++=+####++*###**##*###*##*#***==+++=------=++++==+=====                     
+                   *#########%#########**################+#*++##%#################%############***####*##++*#######*##########*==++++==+==*#*##*+=+++==+                  
+                 #*#######################+#################%%##############%%#%%##%##%##########*###*###++##*#########*#####**##++***###**+#***#++++++++                 
+                +############%#%#%#%##%##########*###########%%%%%%#%#%##%%%##%%%##%##############*##*#########*#########**######%#*+###*##%#*#+###*#*##*+                 
+              +########%#%##%%##%%#%#%%#%#######%#%#%###%#%%%#%%#%#%#%%%%#%#%%#%%#%%%%#%##%#%###%######*#################%#######%#############%##########+              
+    </pre></section>
+
+    <h1>Page not found</h1>
+    <p class="muted">The page you’re looking for doesn’t exist.</p>
+
+    <div class="card">
+      <p class="muted">Try one of the following actions:</p>
+      <p>
+        <a class="pill" href="/" style="margin-right:8px;">Home</a>
+        <a class="pill" href="/">Launch app</a>
+      </p>
+    </div>
+  </main>
+
+  <div class="footer">© 2025 GranEverest · Base</div>
+
+  <script>
+    const btn = document.getElementById('themeToggle');
+    const root = document.documentElement;
+    const setLabel = () => btn.textContent = (root.getAttribute('data-theme')==='dark')?'Light':'Dark';
+    btn.onclick = () => {
+      const cur = root.getAttribute('data-theme')||'dark';
+      const next = cur==='dark'?'light':'dark';
+      root.setAttribute('data-theme', next);
+      localStorage.setItem('geTheme', next);
+      setLabel();
+    };
+    setLabel();
+  </script>
+</body>
+</html>

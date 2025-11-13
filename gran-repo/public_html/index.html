@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GranEverest — Borrow at 0% Interest in ETH</title>
+
+  <!-- THEME BOOT (no-flash) -->
+  <script>
+    (function () {
+      try {
+        const saved = localStorage.getItem('geTheme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+      } catch (_) {}
+    })();
+  </script>
+
+  <!-- Icons / manifest -->
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-180.png">
+  <link rel="manifest" href="/assets/manifest.webmanifest">
+  <meta name="theme-color" content="#0f0f0f">
+
+  <style>
+    /* ===== Design tokens (idénticos a la app) ===== */
+    :root{
+      --bg:#0f0f0f; --text:#e7e7e7; --muted:#bdbdbd;
+      --panel:#111; --border:#222; --bar:#1a1a1a;
+      --btn-bg:#fff; --btn-fg:#111; --btn-bd:#222; --btn-radius:12px;
+      --brand:var(--text); --mountain:#d6d6d6;
+    }
+    html[data-theme="light"]{
+      --bg:#ffffff; --text:#111; --muted:#666;
+      --panel:#fafafa; --border:#e5e5e5; --bar:#f2f2f2;
+      --btn-bg:#ffffff; --btn-fg:#111; --btn-bd:#e5e5e5;
+      --brand:#111; --mountain:#333;
+    }
+
+    /* Base */
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:inherit;text-decoration:none}
+
+    /* ===== Header ===== */
+    .nav{
+      position:sticky; top:0; z-index:10;
+      display:flex; gap:10px; align-items:center; justify-content:flex-end;
+      padding:12px 16px; background:var(--bg)
+    }
+    .brand{margin-right:auto; font-weight:600; color:var(--brand)}
+    /* Botón idéntico al de /borrow */
+    .ge-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      height:28px; padding:0 12px;
+      background:var(--btn-bg); color:var(--btn-fg);
+      border:1px solid var(--btn-bd); border-radius:var(--btn-radius);
+      font-size:14px; line-height:1; cursor:pointer;
+      transition:opacity .15s ease;
+    }
+    .ge-btn:disabled{opacity:.55; cursor:not-allowed}
+    .ge-btn:hover{opacity:.92}
+
+    /* ===== Montaña (igual a la app) ===== */
+    .ge-mountain-wrap{max-width:1100px; margin:2.1rem auto 2rem; overflow:hidden; text-align:center}
+    .ge-mountain{
+      font-family:ui-monospace,Consolas,Menlo,monospace;
+      white-space:pre; display:inline-block;
+      font-size:clamp(6px,0.68vw,8px); line-height:.68em; letter-spacing:.35px;
+      color:var(--mountain); opacity:.88; filter:contrast(0.95) brightness(0.95);
+    }
+
+    /* ===== Layout landing ===== */
+    .wrap{max-width:980px; margin:0 auto; padding:0 20px 110px}
+    h1{margin:.2rem 0 .2rem; text-align:center; font-weight:600; letter-spacing:-.02em}
+    .sub{margin:0 0 .9rem; text-align:center; color:var(--muted); font-size:13px}
+
+    .cluster{display:flex; gap:12px; justify-content:center; margin:.4rem 0 1.2rem}
+    .cards{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px}
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px}
+    .card h3{margin:0 0 .3rem; font-size:15px}
+    .card p{margin:.25rem 0 0; font-size:13px; color:var(--muted)}
+
+    .how{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:14px}
+    .how h3{margin:0 0 .35rem; font-size:16px}
+    .how ol{margin:.2rem 0 0; padding-left:18px}
+    .how li{margin:.25rem 0; font-size:13px; color:var(--muted)}
+
+    .faq{margin:14px 0}
+    details{border:1px solid var(--border); border-radius:10px; margin:10px 0; background:transparent}
+    summary{padding:10px 12px; cursor:pointer}
+    .faq .cta{display:flex; justify-content:center; margin-top:12px}
+
+    .footer{position:fixed; left:50%; transform:translateX(-50%); bottom:8px; color:var(--muted); font-size:13px}
+
+    /* ===== Responsive ===== */
+    @media (max-width:900px){
+      .cards{grid-template-columns:1fr}
+      .cluster{gap:10px}
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <nav class="nav">
+    <a class="brand" href="/">GranEverest</a>
+    <a class="ge-btn" href="/borrow/">Launch app</a>
+    <button id="themeToggle" class="ge-btn" type="button">Light</button>
+  </nav>
+
+  <!-- Montaña -->
+  <main class="wrap">
+    <section class="ge-mountain-wrap" aria-hidden="true">
+      <pre class="ge-mountain">
+             +           
+                         =+                        
+                                                                                   ===-                                                                                   
+                                                                                  =+=----                                                                                 
+                                                                                +++++---=--                                                                              
+                                                                               ++**++--=-=-=                                                                             
+                                                                             ++++++*=---==-=-                                                                           
+                                                                            +++++***+--------=-                                                                         
+                                                                          +++++******=---------=                                                                        
+                                                                         ++++++******+=----------                                                                       
+                                                                        ++*+++*+******=--------=--=                                                                     
+                                                                      +++++**********+-----==------=                                                                    
+                                                                     ++**+********++=-=----------------                                                                 
+                                                                   =++**+*****+**+=---==------==-------=                                                                
+                                                                 =++++*#***********---=-==-----==------=-=                                                               
+                                                                ++++*****++*#+***#**=-----=---=--===----=--                                                              
+                                                               ++**+*+++******####*++=-----=-----=-==------=                                                             
+                                                              ++*#**++**+*######*+--===-----=------===-------                                                            
+                                                            =++***++*############=---===-----==---=-===--=--==                                                           
+                                                          ++++***+######**#+###**=----=-=-----===----===--==---=                                                         
+                                                         ++*+****######**+*##**###+-----==------==-----==--=-=----                                                        
+                                                    +++++++*#*+#######*++###**#####*--------------++-----======+=----=                                                   
+                                                 +++++++*++**+#######+**###*+#*######*=----------=-=+--==--=-===+=--=+=-=-                                              
+                                                +#++++**+++++*###*##+#####***###########-----------===---=---====++++++---==                                             
+                                              ++**#+=++=++++#**##**+####*#**#############=---------===+---=-====+*+++++=-----                                           
+                                            ++*#******+++++**#*#+++#####*+#####*###########+--------===+=-----=++++++++==-----=                                          
+                                           ***++#####*##**+*++*++####*#***######*##*########--------=-====-----=+++=++#+++=----=                                         
+                                          ++++**########++++++*####***+**####*##############=---=-------===------==+++**+++++-----                                       
+                                      +++*+++++###++##*++=+++#####*##+*###*###*##*##########+---==+++=---==-------=+++++++++=+=--===                                     
+                                    *#*=-==+++=+++*+=++==+++#####+*++*#####*+*########%##%#++----=++*=-----=--------=+*+++++=++=---==-                                    
+                                   *###+-----==+++++====+**####+*++++*#++#++++######%##==---=------=+++=-----==-=----=+++=+++++++----=-=                                  
+                                 ######++=---------==++++++**++**+*+**+++++**########*##------------=++===------=---=--=++==+=++===--=+=--                                 
+                               +######***#+---=+=--=--====+++++++*+**+++++*#########++###=----------===++=-----------===-====+=+++=-----====                              
+                             +##########*+++*+==++--===--==++**++++++++++######*++==++*+--+-------===-=++++===--------==+=-=+==++=++------==-=                            
+                           *##*##########**+##+-++++----=---===+++++++*########+-----------+*=---=-=++=-+++*+*+=-----=--==+===*+=+++++---------                           
+                          ################**###*=-=+++==-===---=++++*###########+-----------=+*+-----==++=++*+++=---------=+=--=+++=++++----==---=                        
+                        *#######*#########*+*###*=--==++=+-==+==+++++++**########+----=----==-+**+=--=--++****#***+---------===-==+++=+++=--====-==                       
+                       *####*+*#####*+#####+=+####+=--==++++==+*+++++=++###########=--+++----=++##*+--+===+##**####*#*#=--------=--=+++=+++---======                      
+                      ###############++###*#+++###++++=-==++*++++==+###########%#%##%+-++**+==-=++###+=+#++++*#####*###**#=--===-----=-++++++--==++==                     
+                    #####**###########*++#####++*###++*#*+===+==*##########%#%%##%#####+=+=##+=++=+####++*###**##*###*##*#***==+++=------=++++==+=====                     
+                   *#########%#########**################+#*++##%#################%############***####*##++*#######*##########*==++++==+==*#*##*+=+++==+                  
+                 #*#######################+#################%%##############%%#%%##%##%##########*###*###++##*#########*#####**##++***###**+#***#++++++++                 
+                +############%#%#%#%##%##########*###########%%%%%%#%#%##%%%##%%%##%##############*##*#########*#########**######%#*+###*##%#*#+###*#*##*+                 
+              +########%#%##%%##%%#%#%%#%#######%#%#%###%#%%%#%%#%#%#%%%%#%#%%#%%#%%%%#%##%#%###%######*#################%#######%#############%##########+              
+      </pre>
+    </section>
+
+    <!-- Título -->
+    <h1>Borrow at 0% Interest in ETH</h1>
+    <p class="sub">
+      Borrow <b>ETH</b>. Collateral in <b>ETH</b>. Debt in <b>ETH</b>. On <b>Base</b> (Ethereum L2). Non-custodial. Open architecture. No liquidation risk by design: we guide LTV and withdrawals to keep you safe.
+    </p>
+
+    <!-- CTAs (mismo botón que /borrow) -->
+    <div class="cluster">
+      <a class="ge-btn" href="/borrow/">Launch app</a>
+      <a class="ge-btn" href="#learn">Learn more</a>
+    </div>
+
+    <!-- Tarjetas -->
+    <section id="learn" class="cards">
+      <div class="card">
+        <h3>0% interest (ETH)</h3>
+        <p>No interest on collateral or debt. No ongoing protocol fee. Only network gas.</p>
+      </div>
+      <div class="card">
+        <h3>No liquidation risk</h3>
+        <p>Clear LTV guidance and “repay to withdraw” rules keep your position within safe bounds.</p>
+      </div>
+      <div class="card">
+        <h3>Transparent costs</h3>
+        <p>Protocol fee <b>0.25%</b> only on deposit &amp; withdrawal. Borrow/repay have no protocol fee.</p>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="how">
+      <h3>How it works</h3>
+      <ol>
+        <li><b>Deposit ETH.</b> It stays on-chain and defines your borrow limit (70% LTV).</li>
+        <li><b>Borrow ETH at 0%.</b> Your debt unit is ETH. No interest. No ongoing protocol fee.</li>
+        <li><b>Repay to withdraw.</b> Withdraw collateral after repaying enough to keep LTV ≤ 70%.</li>
+        <li><b>UI guard.</b> If you have debt, the app explains why re-depositing borrowed ETH doesn’t give extra cash.</li>
+      </ol>
+    </section>
+
+    <!-- FAQ -->
+    <section class="faq">
+      <details>
+        <summary>Why can’t I loop borrowed ETH for more cash?</summary>
+        <div style="padding:10px 12px; color:var(--muted); font-size:13px;">
+          The app blocks same-block deposit/borrow loops by design to avoid artificial balance growth.
+        </div>
+      </details>
+      <details>
+        <summary>What fees apply?</summary>
+        <div style="padding:10px 12px; color:var(--muted); font-size:13px;">
+          Protocol fee 0.25% on deposit &amp; withdrawal only. Users pay their own L2 gas.
+        </div>
+      </details>
+
+      <div class="cta">
+        <a class="ge-btn" href="/borrow/">Launch app</a>
+      </div>
+    </section>
+  </main>
+
+  <div class="footer">© 2025 GranEverest · Base</div>
+
+  <script>
+    // Toggle Light/Dark (mismo texto que en la app)
+    (function(){
+      const btn = document.getElementById('themeToggle');
+      const setLabel = ()=> btn.textContent = (document.documentElement.getAttribute('data-theme')==='dark')?'Light':'Dark';
+      btn.addEventListener('click', ()=>{
+        const cur = document.documentElement.getAttribute('data-theme')||'dark';
+        const next = cur==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('geTheme', next);
+        setLabel();
+      });
+      setLabel();
+    })();
+  </script>
+</body>
+</html>
