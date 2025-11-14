@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin — GranEverest</title>
+
+  <!-- THEME BOOT -->
+  <script>
+    (function(){
+      try{
+        const saved=localStorage.getItem('geTheme');
+        const prefersDark=window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme=saved || (prefersDark?'dark':'light');
+        document.documentElement.setAttribute('data-theme',theme);
+      }catch(_){}
+    })();
+  </script>
+
+  <style>
+    :root{
+      --bg:#0f0f0f; --text:#e7e7e7; --muted:#bdbdbd;
+      --card:#111; --border:#222;
+      --btn-bg:#ffffff; --btn-fg:#111;
+    }
+    html[data-theme="light"]{
+      --bg:#ffffff; --text:#111; --muted:#666;
+      --card:#fafafa; --border:#e5e5e5;
+      --btn-bg:#ffffff; --btn-fg:#111;
+    }
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:var(--text);text-decoration:none}
+    .nav{position:sticky;top:0;z-index:2;display:flex;gap:10px;align-items:center;justify-content:flex-end;
+      padding:12px 16px;background:var(--bg)}
+    .brand{margin-right:auto;font-weight:600}
+    .pill{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:12px;
+      border:1px solid var(--border);background:var(--btn-bg);color:var(--btn-fg);font-size:14px;line-height:1;cursor:pointer}
+    .wrap{max-width:920px;margin:22px auto 96px;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .label{font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"]{width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text)}
+    .row{margin:10px 0}
+    .center{text-align:center}
+    .footer{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;color:var(--muted);font-size:13px}
+    .status{display:flex;gap:10px;flex-wrap:wrap}
+    .pill.bad{background:#ffd1d1;color:#420; }
+    .pill.ok{background:#dfffe2;color:#052; }
+    .pill.warn{background:#ffe9bf;color:#543; }
+    #msg{margin-top:8px;color:var(--muted);min-height:18px}
+    button:disabled{opacity:.6;cursor:not-allowed}
+  </style>
+
+  <!-- ethers.js con fallback -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"
+          onerror="(function(){var s=document.createElement('script');s.src='https://unpkg.com/ethers@6.13.2/dist/ethers.umd.min.js';document.head.appendChild(s);})();">
+  </script>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/">GranEverest</a>
+    <a class="pill" href="/">← Home</a>
+    <button id="themeToggle" class="pill" type="button">Light</button>
+  </nav>
+
+  <main class="wrap">
+    <h1>Admin</h1>
+    <p class="label">Pause / Unpause del vault (firmás con tu Trezor por MetaMask en Base).</p>
+
+    <section class="card">
+      <div class="row">
+        <div class="label">Vault</div>
+        <input id="vault" type="text" value="0xA3F0e117F200763b7FA37250BFF63CBF690364B4" />
+      </div>
+
+      <div class="grid">
+        <button id="connect" class="pill" type="button">Connect wallet</button>
+        <span id="connInfo" class="pill" style="pointer-events:none;">No wallet</span>
+      </div>
+
+      <div class="row status" style="margin-top:12px;">
+        <span class="label">Network:</span><span id="network" class="pill">?</span>
+        <span class="label">Owner:</span><span id="owner" class="pill">—</span>
+        <span class="label">Guardian:</span><span id="guardian" class="pill">—</span>
+        <span class="label">Paused:</span><span id="paused" class="pill warn">?</span>
+        <span class="label">You:</span><span id="you" class="pill">—</span>
+      </div>
+
+      <div class="grid" style="margin-top:12px;">
+        <button id="pauseBtn" class="pill" type="button" disabled>Pause</button>
+        <button id="unpauseBtn" class="pill" type="button" disabled>Unpause</button>
+      </div>
+
+      <div id="msg"></div>
+    </section>
+  </main>
+
+  <div class="footer">© 2025 GranEverest · Base</div>
+
+  <script>
+    // Theme toggle tolerante a ausencia del botón
+    (function(){
+      const root=document.documentElement, btn=document.getElementById('themeToggle');
+      if(!btn) return;
+      const setLabel=()=>btn.textContent=root.getAttribute('data-theme')==='dark'?'Light':'Dark';
+      btn.addEventListener('click',()=>{const cur=root.getAttribute('data-theme')||'dark';const next=cur==='dark'?'light':'dark';root.setAttribute('data-theme',next);localStorage.setItem('geTheme',next);setLabel();});
+      setLabel();
+    })();
+
+    (function startWhenReady(){
+      function ready(){ if (!window.ethers) return setTimeout(ready,150); boot(); }
+      ready();
+      function boot(){
+        const CHAIN_ID_HEX='0x2105'; // Base mainnet
+        const ABI=[
+          {"inputs":[],"name":"pause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+          {"inputs":[],"name":"unpause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+          {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+          {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+          {"inputs":[],"name":"guardian","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+        ];
+
+        const $=id=>document.getElementById(id);
+        const vaultInput=$('vault'), connectBtn=$('connect'), connInfo=$('connInfo'),
+              net=$('network'), owner=$('owner'), guardian=$('guardian'),
+              paused=$('paused'), you=$('you'), pauseBtn=$('pauseBtn'),
+              unpauseBtn=$('unpauseBtn'), msg=$('msg');
+
+        let provider, signer, account, contract;
+
+        const short=a=>a?a.slice(0,6)+'…'+a.slice(-4):'—';
+        const setMsg=t=>{ if(msg) msg.textContent=t||''; };
+        const enable=ok=>{ pauseBtn.disabled=!ok; unpauseBtn.disabled=!ok; };
+
+        async function ensureNetwork(){
+          const ch = await provider.send('eth_chainId',[]);
+          if (ch!==CHAIN_ID_HEX){
+            await provider.send('wallet_switchEthereumChain',[{chainId:CHAIN_ID_HEX}]);
+          }
+          net.textContent='Base';
+        }
+
+        async function refresh(){
+          try{
+            const addr=vaultInput.value.trim();
+            const c=new ethers.Contract(addr,ABI,provider);
+            const [isP,o,g]=await Promise.all([c.paused(),c.owner(),c.guardian()]);
+            contract=c;
+            paused.textContent=isP?'true':'false';
+            paused.className='pill '+(isP?'warn':'ok');
+            owner.textContent=short(o);
+            guardian.textContent=short(g);
+            you.textContent=account?short(account):'—';
+            const can=account && ([o,g].map(x=>x.toLowerCase()).includes(account.toLowerCase()));
+            enable(!!can);
+            setMsg(can?'Listo para operar.':'Conectá la cuenta Owner/Guardian para habilitar.');
+          }catch(e){
+            enable(false); setMsg('Lectura falló. Revisá address/red.');
+          }
+        }
+
+        async function doConnect(){
+          try{
+            if(!window.ethereum){ alert('No hay wallet. Instalá MetaMask.'); return; }
+            const accs=await window.ethereum.request({method:'eth_requestAccounts'});
+            account=ethers.getAddress(accs[0]);
+            provider=new ethers.BrowserProvider(window.ethereum);
+            await ensureNetwork();
+            signer=await provider.getSigner();
+            connInfo.textContent='Connected '+short(account);
+            window.ethereum.on?.('accountsChanged',()=>location.reload());
+            window.ethereum.on?.('chainChanged',()=>location.reload());
+            await refresh();
+          }catch(e){
+            setMsg((e && (e.shortMessage||e.message)) || 'Conexión rechazada.');
+          }
+        }
+
+        connectBtn.addEventListener('click', doConnect);
+        vaultInput.addEventListener('change', refresh);
+        pauseBtn.addEventListener('click', async ()=>{
+          try{ setMsg('Enviando pause()…'); const tx=await contract.connect(signer).pause(); setMsg('Tx: '+tx.hash+' (waiting…)'); await tx.wait(); setMsg('Paused.'); await refresh(); }
+          catch(e){ setMsg('pause() falló: '+(e.shortMessage||e.message)); }
+        });
+        unpauseBtn.addEventListener('click', async ()=>{
+          try{ setMsg('Enviando unpause()…'); const tx=await contract.connect(signer).unpause(); setMsg('Tx: '+tx.hash+' (waiting…)'); await tx.wait(); setMsg('Unpaused.'); await refresh(); }
+          catch(e){ setMsg('unpause() falló: '+(e.shortMessage||e.message)); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
