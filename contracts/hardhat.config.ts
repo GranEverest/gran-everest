@@ -21,11 +21,9 @@ const config: HardhatUserConfig = {
     base:       { url: BASE_MAINNET_RPC_URL  || "https://mainnet.base.org",  accounts, chainId: 8453 },
     baseSepolia:{ url: BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",   accounts, chainId: 84532 },
   },
-  // ✅ V2: una sola API key (no por red). Sin customChains para Base.
   etherscan: {
     apiKey: ETHERSCAN_API_KEY || "",
   },
-  // (Opcional) para que no aparezca el aviso de Sourcify
   sourcify: { enabled: false },
   typechain: { outDir: "typechain-types", target: "ethers-v6" },
 };
