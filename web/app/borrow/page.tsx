@@ -1,781 +1,1077 @@
+// web/app/borrow/page.tsx
 "use client";
 
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPublicClient, http, type Address } from "viem";
-import { CHAIN } from "@/chain";
-import { useVault } from "@/hooks/useVault";
-import { useVaultStatus } from "@/hooks/useVaultStatus";
-import { PauseBanner, PauseGuard } from "@/components/PauseGuard";
-import { NetworkBanner, NetworkGuard } from "@/components/NetworkGuard";
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
+import {
+  WagmiProvider,
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useChainId,
+  useSwitchChain,
+} from "wagmi";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { config } from "@/wagmi";
+
+import { formatEther, parseEther } from "viem";
+import { useVaultMulti, VaultView } from "@/hooks/useVaultMulti";
+import { CHAIN } from "@/chain";
+import { useSwap } from "@/hooks/useSwap";
+import type { ReceiveAsset } from "@/hooks/useSwap";
+
+type ScreenState = "idle" | "loading";
+
+const queryClient = new QueryClient();
+
+// ---------- Theme hook (same behaviour as landing/trust) ----------
+function useThemeBoot() {
+  const [dark, setDark] = useState(true);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("geTheme");
+      const prefersDark =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+
+      const isDark = saved ? saved === "dark" : !!prefersDark;
+      setDark(isDark);
+      document.documentElement.setAttribute(
+        "data-theme",
+        isDark ? "dark" : "light"
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute(
+        "data-theme",
+        dark ? "dark" : "light"
+      );
+      localStorage.setItem("geTheme", dark ? "dark" : "light");
+    } catch {
+      // ignore
+    }
+  }, [dark]);
+
+  return { dark, setDark };
 }
 
-const SAFE_ADDRESS =
-  (process.env.NEXT_PUBLIC_SAFE_ADDRESS as `0x${string}`) ||
-  "0xF20dD249319Df6575B7eF436980948BE5A4B88D7";
-const safeShort = `${SAFE_ADDRESS.slice(0, 6)}...${SAFE_ADDRESS.slice(-4)}`;
+// ---------------------------------------------------------------------
+// Wrapper con providers
+// ---------------------------------------------------------------------
+export default function BorrowPage() {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <BorrowScreen />
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
 
-const LOCALE = "en-US";
-const USD_FMT = new Intl.NumberFormat(LOCALE, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+// ---------------------------------------------------------------------
+// Pantalla real
+// ---------------------------------------------------------------------
+function BorrowScreen() {
+  const { dark, setDark } = useThemeBoot();
 
-const publicClient = createPublicClient({
-  chain: CHAIN as any,
-  transport: http(process.env.NEXT_PUBLIC_RPC_URL || "https://mainnet.base.org"),
-});
+  const { address } = useAccount();
+  const { connect, connectors, isPending: isConnecting } = useConnect();
+  const { disconnect } = useDisconnect();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
 
-type HistItem = {
-  t: number;
-  action: "deposit" | "borrow" | "repay" | "withdraw";
-  amount: number;
-};
+  const {
+    getAllMyVaults,
+    getCurrentMaxBorrow,
+    createVault,
+    deposit,
+    borrow,
+    repay,
+    withdraw,
+    contractAddress,
+  } = useVaultMulti();
 
-/** === MONTAÑA ASCII (misma que en la landing). NO toques espacios === */
-const MOUNTAIN_ASCII = String.raw`
-             +           
-                        =+                        
-                                                                                   ===-                                                                                   
-                                                                                  =+=----                                                                                 
-                                                                                +++++---=--                                                                               
-                                                                               ++**++--=-=-=                                                                              
-                                                                             ++++++*=---==-=-                                                                             
-                                                                            +++++***+--------=-                                                                            
-                                                                          +++++******=---------=                                                                           
-                                                                         ++++++******+=----------                                                                         
-                                                                        ++*+++*+******=--------=--=                                                                        
-                                                                      +++++**********+-----==------=                                                                       
-                                                                     ++**+********++=-=----------------                                                                  
-                                                                   =++**+*****+**+=---==------==-------=                                                                 
-                                                                 =++++*#***********---=-==-----==------=-=                                                                
-                                                                ++++*****++*#+***#**=-----=---=--===----=--                                                               
-                                                               ++**+*+++******####*++=-----=-----=-==------=                                                              
-                                                              ++*#**++**+*######*+--===-----=------===-------                                                             
-                                                            =++***++*############=---===-----==---=-===--=--==                                                            
-                                                          ++++***+######**#+###**=----=-=-----===----===--==---=                                                          
-                                                         ++*+****######**+*##**###+-----==------==-----==--=-=----                                                         
-                                                    +++++++*#*+#######*++###**#####*--------------++-----======+=----=                                                    
-                                                 +++++++*++**+#######+**###*+#*######*=----------=-=+--==--=-===+=--=+=-=-                                                
-                                                +#++++**+++++*###*##+#####***###########-----------===---=---====++++++---==                                              
-                                              ++**#+=++=++++#**##**+####*#**#############=---------===+---=-====+*+++++=-----                                            
-                                            ++*#******+++++**#*#+++#####*+#####*###########+--------===+=-----=++++++++==-----=                                          
-                                           ***++#####*##**+*++*++####*#***######*##*########--------=-====-----=+++=++#+++=----=                                         
-                                          ++++**########++++++*####***+**####*##############=---=-------===------==+++**+++++-----                                        
-                                      +++*+++++###++##*++=+++#####*##+*###*###*##*##########+---==+++=---==-------=+++++++++=+=--===                                      
-                                    *#*=-==+++=+++*+=++==+++#####+*++*#####*+*########%##%#++----=++*=-----=--------=+*+++++=++=---==-                                    
-                                   *###+-----==+++++====+**####+*++++*#++#++++######%##==---=------=+++=-----==-=----=+++=+++++++----=-=                                  
-                                 ######++=---------==++++++**++**+*+**+++++**########*##------------=++===------=---=--=++==+=++===--=+=--                                 
-                               +######***#+---=+=--=--====+++++++*+**+++++*#########++###=----------===++=-----------===-====+=+++=-----====                              
-                             +##########*+++*+==++--===--==++**++++++++++######*++==++*+--+-------===-=++++===--------==+=-=+==++=++------==-=                            
-                           *##*##########**+##+-++++----=---===+++++++*########+-----------+*=---=-=++=-+++*+*+=-----=--==+===*+=+++++---------                           
-                          ################**###*=-=+++==-===---=++++*###########+-----------=+*+-----==++=++*+++=---------=+=--=+++=++++----==---=                        
-                        *#######*#########*+*###*=--==++=+-==+==+++++++**########+----=----==-+**+=--=--++****#***+---------===-==+++=+++=--====-==                       
-                       *####*+*#####*+#####+=+####+=--==++++==+*+++++=++###########=--+++----=++##*+--+===+##**####*#*#=--------=--=+++=+++---======                      
-                      ###############++###*#+++###++++=-==++*++++==+###########%#%##%+-++**+==-=++###+=+#++++*#####*###**#=--===-----=-++++++--==++==                     
-                    #####**###########*++#####++*###++*#*+===+==*##########%#%%##%#####+=+=##+=++=+####++*###**##*###*##*#***==+++=------=++++==+=====                     
-                   *#########%#########**################+#*++##%#################%############***####*##++*#######*##########*==++++==+==*#*##*+=+++==+                  
-                 #*#######################+#################%%##############%%#%%##%##%##########*###*###++##*#########*#####**##++***###**+#***#++++++++                 
-                +############%#%#%#%##%##########*###########%%%%%%#%#%##%%%##%%%##%##############*##*#########*#########**######%#*+###*##%#*#+###*#*##*+                 
-              +########%#%##%%##%%#%#%%#%#######%#%#%###%#%%%#%%#%#%#%%%%#%#%%#%%#%%%%#%##%#%###%######*#################%#######%#############%##########+             
-`;
+  const { swapEthForToken } = useSwap();
 
-/** Redes detectadas (solo badge) */
-const NETWORKS = {
-  base: { hex: "0x2105", label: "Base" },
-  baseSepolia: { hex: "0x14a34", label: "Base Sepolia" },
-} as const;
+  const [vaults, setVaults] = useState<VaultView[]>([]);
+  const [selectedVaultId, setSelectedVaultId] = useState<number | null>(null);
+  const [maxBorrowEth, setMaxBorrowEth] = useState<string>("0.0");
 
-export default function LoansPage() {
-  const [darkMode, setDarkMode] = useState(true);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [borrowAmount, setBorrowAmount] = useState("");
+  const [repayAmount, setRepayAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
-  // Wallet
-  const [account, setAccount] = useState<Address | null>(null);
+  const [status, setStatus] = useState<string>("");
+  const [screenState, setScreenState] = useState<ScreenState>("idle");
+
+  const [receiveAsset, setReceiveAsset] = useState<ReceiveAsset>("ETH");
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
-    if (!window?.ethereum) return;
-    window.ethereum
-      .request({ method: "eth_accounts" })
-      .then((accs: string[]) => setAccount((accs?.[0] as Address) ?? null))
-      .catch(() => setAccount(null));
-    const onAccounts = (accs: string[]) =>
-      setAccount((accs?.[0] as Address) ?? null);
-    window.ethereum.on?.("accountsChanged", onAccounts);
-    return () =>
-      window.ethereum?.removeListener?.("accountsChanged", onAccounts);
+    setMounted(true);
   }, []);
-  const connectWallet = async () => {
-    if (!window?.ethereum) return alert("No wallet provider.");
-    const accs: string[] = await window.ethereum.request({
-      method: "eth_requestAccounts",
-    });
-    setAccount((accs?.[0] as Address) ?? null);
-  };
-  const disconnectWallet = () => setAccount(null);
 
-  // Vault hook
-  const { state, loading, error, deposit, withdraw, borrow, repay, refresh } =
-    useVault(account ?? undefined);
+  const primaryConnector = connectors[0];
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", darkMode);
-  }, [darkMode]);
+  const isWrongNetwork =
+    !!address && typeof chainId === "number" && chainId !== CHAIN.id;
 
-  // Network badge
-  const [chainIdHex, setChainIdHex] = useState<string | null>(null);
-  useEffect(() => {
-    const check = async () => {
-      try {
-        const id = await window?.ethereum?.request({ method: "eth_chainId" });
-        setChainIdHex(id ?? null);
-      } catch {
-        setChainIdHex(null);
-      }
-    };
-    check();
-    const onChain = (id: string) => setChainIdHex(id);
-    window?.ethereum?.on?.("chainChanged", onChain);
-    return () => window?.ethereum?.removeListener?.("chainChanged", onChain);
-  }, []);
-  const isOnBase = chainIdHex === NETWORKS.base.hex;
-  const isOnBaseSepolia = chainIdHex === NETWORKS.baseSepolia.hex;
+  const selectedVault: VaultView | undefined =
+    selectedVaultId === null
+      ? undefined
+      : vaults.find((v) => v.vaultId === selectedVaultId);
 
-  // Switch to Base
-  const switchToBase = async () => {
-    if (!window?.ethereum) return;
+  const ltvPercent = (() => {
+    if (!selectedVault) return "0";
+    const collateralNum = Number(selectedVault.collateral);
+    if (!collateralNum) return "0";
+    const debtNum = Number(selectedVault.debt);
+    const num = debtNum / collateralNum;
+    return (num * 100).toFixed(2);
+  })();
+
+  async function refreshVaults() {
+    if (!address) return;
+    const wrong = typeof chainId === "number" && chainId !== CHAIN.id;
+    if (wrong) return;
+
+    setScreenState("loading");
+    setStatus("Refreshing vaults…");
+
     try {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x2105" }],
-      });
-    } catch (e: any) {
-      if (e?.code === 4902) {
-        await window.ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [
-            {
-              chainId: "0x2105",
-              chainName: "Base",
-              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-              rpcUrls: ["https://mainnet.base.org"],
-              blockExplorerUrls: ["https://basescan.org"],
-            },
-          ],
-        });
-      } else {
-        console.error(e);
+      const vs = await getAllMyVaults();
+      setVaults(vs);
+
+      let id = selectedVaultId;
+      if (id === null) {
+        id = vs.length > 0 ? vs[0].vaultId : null;
+        setSelectedVaultId(id);
       }
+
+      if (id !== null) {
+        const max = await getCurrentMaxBorrow(id);
+        setMaxBorrowEth(formatEther(max));
+      } else {
+        setMaxBorrowEth("0.0");
+      }
+
+      setStatus("");
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Error refreshing vaults");
+    } finally {
+      setScreenState("idle");
     }
-  };
+  }
 
-  // Toast
-  const [toast, setToast] = useState<string | null>(null);
-  const showToast = (m: string) => {
-    setToast(m);
-    setTimeout(() => setToast(null), 2200);
-  };
-
-  // History
-  const histKey = `ge:hist:${account ?? "no-account"}`;
-  const [hist, setHist] = useState<HistItem[]>([]);
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = localStorage.getItem(histKey);
-    setHist(raw ? JSON.parse(raw) as HistItem[] : []);
-  }, [histKey]);
-  const pushHist = (i: HistItem) => {
-    const next = [i, ...hist].slice(0, 100);
-    setHist(next);
-    if (typeof window !== "undefined")
-      localStorage.setItem(histKey, JSON.stringify(next));
-  };
-  const [histExpanded, setHistExpanded] = useState(false);
-  const shownHist = histExpanded ? hist : hist.slice(0, 5);
-
-  // Inputs
-  const [amount, setAmount] = useState<string>("");
-  const [wdAmt, setWdAmt] = useState<string>("");
-  const amtNum = Number(amount);
-  const validAmount = Number.isFinite(amtNum) && amtNum > 0;
-  const wdNum = Number(wdAmt);
-  const validWd = Number.isFinite(wdNum) && wdNum > 0;
-
-  // Derived
-  const collateralEth = state?.collateralEth ?? 0;
-  const borrowedEth = state?.borrowedEth ?? 0;
-  const limitEth = state?.borrowLimitEth ?? 0;
-  const price = state?.priceEthUsd ?? 0;
-  const usd = (n: number) => USD_FMT.format(n * price);
-
-  // Loop guard (UI)
-  const [lastBorrowBlock, setLastBorrowBlock] = useState<bigint | null>(null);
-  const [currentBlock, setCurrentBlock] = useState<bigint | null>(null);
-  const [overrideLoopGuard, setOverrideLoopGuard] = useState(false);
-  useEffect(() => {
-    let live = true;
-    const poll = async () => {
-      try {
-        const bn = await publicClient.getBlockNumber();
-        if (!live) return;
-        setCurrentBlock(bn);
-      } catch {}
-    };
-    poll();
-    const id = setInterval(poll, 2500);
-    return () => {
-      live = false;
-      clearInterval(id);
-    };
-  }, []);
-  const sameBlockAsBorrow =
-    lastBorrowBlock !== null && currentBlock !== null && lastBorrowBlock === currentBlock;
-
-  // Pause-aware
-  const VAULT_ADDRESS =
-    (process.env.NEXT_PUBLIC_VAULT_ADDRESS as `0x${string}`) ||
-    ("0xA3F0e117F200763b7FA37250BFF63CBF690364B4" as const);
-  const { paused, loading: pausedLoading, refresh: refreshPaused } =
-    useVaultStatus(VAULT_ADDRESS);
-
-  // Actions
-  const onDeposit = async () => {
-    if (!validAmount) return showToast("Enter amount > 0");
-    if (paused) return showToast("Vault is paused");
-    if (!isOnBase) return showToast("Switch to Base");
-    if (sameBlockAsBorrow && !overrideLoopGuard)
-      return showToast("Wait 1 block or override");
-    const r = await deposit(amtNum);
-    if (r?.ok === false) return showToast(r.error || "Deposit failed");
-    pushHist({ t: Date.now(), action: "deposit", amount: amtNum });
-    showToast("Deposit done");
-  };
-  const onRepay = async () => {
-    if (!validAmount) return showToast("Enter amount > 0");
-    if (paused) return showToast("Vault is paused");
-    if (!isOnBase) return showToast("Switch to Base");
-    const r = await repay(amtNum);
-    if (r?.ok === false) return showToast(r.error || "Repay failed");
-    pushHist({ t: Date.now(), action: "repay", amount: amtNum });
-    showToast("Repay done");
-  };
-
-  const [targetPct, setTargetPct] = useState<number>(0);
-  const deltaToTargetEth = limitEth * (targetPct / 100) - borrowedEth;
-
-  const onBorrowToTarget = async () => {
-    const delta = Number(deltaToTargetEth.toFixed(6));
-    if (Math.abs(delta) < 1e-9) return;
-    if (paused) return showToast("Vault is paused");
-    if (!isOnBase) return showToast("Switch to Base");
-    if (delta > 0) {
-      if (borrowedEth + delta > limitEth + 1e-12)
-        return showToast("Exceeds borrow limit");
-      const r = await borrow(delta);
-      if (r?.ok === false) return showToast(r.error || "Borrow failed");
-      const bn = await publicClient.getBlockNumber();
-      setLastBorrowBlock(bn);
-      pushHist({ t: Date.now(), action: "borrow", amount: delta });
-      showToast("Borrow done");
-    } else {
-      const r = await repay(Math.abs(delta));
-      if (r?.ok === false) return showToast(r.error || "Repay failed");
-      pushHist({ t: Date.now(), action: "repay", amount: Math.abs(delta) });
-      showToast("Repay done");
+    setStatus("");
+    if (!address) {
+      setVaults([]);
+      setSelectedVaultId(null);
+      setMaxBorrowEth("0.0");
+      return;
     }
-  };
+    if (!mounted) return;
 
-  const repayNeededFor = (w: number) => {
-    const newMax = Math.max(0, (collateralEth - w) * 0.7);
-    return Math.max(0, borrowedEth - newMax);
-  };
-  const repayNeeded = validWd ? repayNeededFor(wdNum) : 0;
-  const repayNeededAll = borrowedEth;
+    const wrong = typeof chainId === "number" && chainId !== CHAIN.id;
+    if (wrong) return;
 
-  const onRepayThenWithdraw = async () => {
-    if (!validWd) return showToast("Enter a valid withdraw amount");
-    if (paused) return showToast("Vault is paused");
-    if (!isOnBase) return showToast("Switch to Base");
-    if (wdNum > collateralEth + 1e-12) return showToast("Exceeds collateral");
-    if (repayNeeded > 1e-12) {
-      const r1 = await repay(repayNeeded);
-      if (r1?.ok === false) return showToast(r1.error || "Repay failed");
-      pushHist({ t: Date.now(), action: "repay", amount: repayNeeded });
-      showToast("Repay done");
+    void refreshVaults();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, chainId, mounted]);
+
+  async function handleCreateVault() {
+    if (!address || isWrongNetwork) return;
+    setScreenState("loading");
+    setStatus("Creating vault…");
+    try {
+      const id = await createVault();
+      setSelectedVaultId(id);
+      await refreshVaults();
+      setStatus(`Vault #${id} created`);
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Error creating vault");
+    } finally {
+      setScreenState("idle");
     }
-    const r2 = await withdraw(wdNum);
-    if (r2?.ok === false) return showToast(r2.error || "Withdraw failed");
-    pushHist({ t: Date.now(), action: "withdraw", amount: wdNum });
-    showToast("Withdraw done");
-  };
+  }
 
-  const onWithdrawAllFlow = async () => {
-    if (paused) return showToast("Vault is paused");
-    if (!isOnBase) return showToast("Switch to Base");
-    if (collateralEth <= 0) return showToast("No collateral");
-    if (borrowedEth > 1e-12) {
-      const r1 = await repay(borrowedEth);
-      if (r1?.ok === false) return showToast(r1.error || "Repay failed");
-      pushHist({ t: Date.now(), action: "repay", amount: borrowedEth });
-      showToast("Repay done");
+  async function handleDeposit() {
+    if (selectedVaultId === null) {
+      setStatus("Select a vault first");
+      return;
     }
-    const r2 = await withdraw(collateralEth);
-    if (r2?.ok === false) return showToast(r2.error || "Withdraw failed");
-    pushHist({ t: Date.now(), action: "withdraw", amount: collateralEth });
-    showToast("Withdraw ALL done");
-  };
+    if (!depositAmount) {
+      setStatus("Enter an amount to deposit");
+      return;
+    }
 
-  // Helpers
-  const connectedShort = useMemo(() => {
-    if (!account) return "—";
-    const a = account as string;
-    return `${a.slice(0, 6)}...${a.slice(-4)}`;
-  }, [account]);
+    setScreenState("loading");
+    setStatus("Depositing…");
+    try {
+      await deposit(selectedVaultId, depositAmount);
+      setDepositAmount("");
+      await refreshVaults();
+      setStatus("Deposit done");
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Deposit failed");
+    } finally {
+      setScreenState("idle");
+    }
+  }
 
-  const CARD_WIDTH = 420;
+  async function handleBorrow() {
+    if (selectedVaultId === null) {
+      setStatus("Select a vault first");
+      return;
+    }
+    if (!borrowAmount) {
+      setStatus("Enter an amount to borrow");
+      return;
+    }
 
-  // Dropdown connect/disconnect
-  const [openMenu, setOpenMenu] = useState(false);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (!btnRef.current) return;
-      if (!btnRef.current.contains(e.target as Node)) setOpenMenu(false);
-    };
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, []);
+    setScreenState("loading");
+    setStatus("Borrowing…");
+    try {
+      const amountEthStr = borrowAmount;
 
+      // 1) Borrow in ETH from the vault
+      await borrow(selectedVaultId, amountEthStr);
+      setBorrowAmount("");
+      await refreshVaults();
+
+      // 2) Optional swap
+      if (receiveAsset !== "ETH" && address) {
+        setStatus(`Borrow done. Swapping to ${receiveAsset}…`);
+        try {
+          const amountWei = parseEther(amountEthStr);
+          await swapEthForToken({
+            amountWei,
+            asset: receiveAsset,
+            taker: address as `0x${string}`,
+          });
+          setStatus(`Borrow + swap to ${receiveAsset} done`);
+        } catch (swapErr: any) {
+          console.error(swapErr);
+          setStatus(
+            `Borrow in ETH done, but swap to ${receiveAsset} failed: ${
+              swapErr?.message || "Unknown error"
+            }`
+          );
+        }
+      } else {
+        setStatus("Borrow done");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Borrow failed");
+    } finally {
+      setScreenState("idle");
+    }
+  }
+
+  async function handleRepay() {
+    if (selectedVaultId === null) {
+      setStatus("Select a vault first");
+      return;
+    }
+    if (!repayAmount) {
+      setStatus("Enter an amount to repay");
+      return;
+    }
+
+    setScreenState("loading");
+    setStatus("Repaying…");
+    try {
+      await repay(selectedVaultId, repayAmount);
+      setRepayAmount("");
+      await refreshVaults();
+      setStatus("Repay done");
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Repay failed");
+    } finally {
+      setScreenState("idle");
+    }
+  }
+
+  async function handleWithdraw() {
+    if (selectedVaultId === null) {
+      setStatus("Select a vault first");
+      return;
+    }
+    if (!withdrawAmount) {
+      setStatus("Enter an amount to withdraw");
+      return;
+    }
+
+    setScreenState("loading");
+    setStatus("Withdrawing…");
+    try {
+      await withdraw(selectedVaultId, withdrawAmount);
+      setWithdrawAmount("");
+      await refreshVaults();
+      setStatus("Withdraw done");
+    } catch (err: any) {
+      console.error(err);
+      setStatus(err?.message || "Withdraw failed");
+    } finally {
+      setScreenState("idle");
+    }
+  }
+
+  if (!mounted) return null;
+
+  // ---------- UI ----------
   return (
     <>
-      <main className="relative min-h-screen overflow-x-hidden z-[5]">
-        {/* HEADER */}
-        <header
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "0.7rem 1.5rem",
-            zIndex: 1000,
-            background: "var(--bg)",
-          }}
-        >
-          <Link href="/" className="ge-logo" style={{ textDecoration: "none" }}>
-            GranEverest
+      {/* NAVBAR */}
+      <nav className="nav">
+        <Link className="brand" href="/">
+          GranEverest
+        </Link>
+        <div className="nav-right">
+          <Link href="/trust" className="pill">
+            Trust
           </Link>
+          <Link href="/borrow" className="pill">
+            Launch app
+          </Link>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => setDark((v) => !v)}
+          >
+            {dark ? "Light" : "Dark"}
+          </button>
+        </div>
+      </nav>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Link href="/" className="ge-btn small">
-              ← Home
-            </Link>
-
-            {/* Connect / Disconnect */}
-            <div style={{ position: "relative" }}>
-              <button
-                ref={btnRef}
-                onClick={() =>
-                  account ? setOpenMenu((v) => !v) : connectWallet()
-                }
-                className="ge-btn"
-                title={account ? "Wallet options" : "Connect wallet"}
-              >
-                {account ? "Connected" : "Connect Wallet"}
-              </button>
-              {account && openMenu && (
-                <div
-                  className="ge-rect"
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 6px)",
-                    padding: 6,
-                    display: "grid",
-                    gap: 6,
-                    background: "var(--panel)",
-                    minWidth: 200,
-                    zIndex: 1100,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: ".85rem",
-                      opacity: 0.9,
-                      padding: "4px 6px",
-                      textAlign: "left",
-                    }}
-                  >
-                    {connectedShort}
-                  </div>
-                  <button
-                    onClick={disconnectWallet}
-                    className="ge-btn small"
-                    style={{ width: "100%" }}
-                  >
-                    Disconnect
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Network label */}
-            <button
-              disabled
-              className="ge-rect"
-              style={{
-                cursor: "default",
-                color: isOnBase || isOnBaseSepolia ? "#22c55e" : "#f87171",
-                minWidth: 110,
-                justifyContent: "center",
-              }}
-              title={chainIdHex ?? "No wallet"}
-            >
-              {chainIdHex
-                ? isOnBase
-                  ? "Base"
-                  : isOnBaseSepolia
-                  ? "Base Sepolia"
-                  : `Net ${chainIdHex}`
-                : "No wallet"}
-            </button>
-
-            {/* SAFE BADGE */}
-            <a
-              href={`https://basescan.org/address/${SAFE_ADDRESS}`}
-              target="_blank"
-              rel="noreferrer"
-              className="ge-rect"
-              title={`Admin Safe: ${SAFE_ADDRESS}`}
-              style={{ minWidth: 190, textAlign: "center" }}
-            >
-              Admin: Safe {safeShort}
-            </a>
-
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="ge-btn"
-              style={{ width: 160, justifyContent: "flex-start" }}
-            >
-              <span
-                className="ge-dot"
-                style={{ background: darkMode ? "#fff" : "#000" }}
-              />
-              {darkMode ? "Light" : "Dark"}
-            </button>
+      <main className="wrap">
+        {/* Top row: network + connect */}
+        <section className="borrow-top">
+          <div className="borrow-network small">
+            <span className="badge">{CHAIN.name}</span>
+            <span className="muted">
+              &nbsp;· Debt unit: ETH · Max LTV 70% · No liquidations
+            </span>
           </div>
-        </header>
-
-        {/* === MONTAÑA (idéntica a landing) === */}
-        <div style={{ marginTop: "5.25rem" }} />
-        <section className="ge-mountain-wrap" aria-hidden="true">
-          <pre className="ge-mountain">{MOUNTAIN_ASCII}</pre>
+          <div className="borrow-connect">
+            {address ? (
+              <>
+                <span className="wallet-chip small">
+                  {address.slice(0, 6)}…{address.slice(-4)}
+                </span>
+                <button
+                  onClick={() => disconnect()}
+                  className="btn-outline small"
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
+              <button
+                disabled={!primaryConnector || isConnecting}
+                onClick={() =>
+                  primaryConnector && connect({ connector: primaryConnector })
+                }
+                className="btn-outline small"
+              >
+                {isConnecting ? "Connecting…" : "Connect wallet"}
+              </button>
+            )}
+          </div>
         </section>
 
-        {/* TÍTULO */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <h1
-            style={{
-              fontWeight: 500,
-              letterSpacing: "-0.02em",
-              margin: "0.2rem 0 0.2rem",
-              fontSize: "2.4rem",
-            }}
-          >
-            Loans
-          </h1>
-        </div>
-        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <p style={{ marginBottom: "0.35rem", fontSize: "0.9rem", opacity: 0.9 }}>
-            ETH Vault
-          </p>
-        </div>
-
-        {/* BANNERS */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <div style={{ width: 420, maxWidth: "92vw" }}>
-            <NetworkBanner
-              isOnBase={isOnBase}
-              chainIdHex={chainIdHex}
-              onSwitch={switchToBase}
-            />
-            <PauseBanner paused={paused} onRefresh={refreshPaused} />
+        {isWrongNetwork && (
+          <div className="banner-warning small">
+            <span>
+              Wrong network. Switch to <b>{CHAIN.name}</b>.
+            </span>
+            {switchChain && (
+              <button
+                onClick={() => switchChain({ chainId: CHAIN.id })}
+                className="btn-outline small"
+              >
+                Switch
+              </button>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* CARD */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-          <div
-            style={{
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: 16,
-              marginTop: 8,
-              width: CARD_WIDTH,
-              maxWidth: "92vw",
-              textAlign: "left",
-              background: "var(--panel)",
-              boxSizing: "border-box",
-            }}
-          >
-            {(loading || pausedLoading) && (
-              <p className="text-sm" style={{ opacity: 0.7 }}>
-                Processing…
+        {/* Grid: Vaults + My vaults */}
+        <section className="borrow-grid">
+          {/* Vaults definition */}
+          <article className="card">
+            <h2>Vaults</h2>
+            <div className="product-card">
+              <div className="product-header">
+                <div>
+                  <h3>ETH vault</h3>
+                  <p className="small">
+                    Single ETH collateral vault. 0% interest. No liquidations.
+                    Debt in ETH.
+                  </p>
+                </div>
+              </div>
+              <div className="product-meta small">
+                <div>
+                  Network: <span className="muted">{CHAIN.name}</span>
+                </div>
+                <div>
+                  Contract:{" "}
+                  <code>
+                    {contractAddress.slice(0, 8)}…{contractAddress.slice(-4)}
+                  </code>
+                </div>
+              </div>
+              <button
+                onClick={handleCreateVault}
+                disabled={
+                  !address || isWrongNetwork || screenState === "loading"
+                }
+                className="btn-primary small"
+              >
+                + Create ETH vault
+              </button>
+              <p className="small muted">
+                When you create a vault, it will appear under{" "}
+                <strong>My vaults</strong>.
+              </p>
+            </div>
+          </article>
+
+          {/* My vaults list */}
+          <article className="card">
+            <h2>My vaults</h2>
+            {!address && (
+              <p className="small muted">
+                Connect your wallet to create and manage vaults.
               </p>
             )}
 
-            <NetworkGuard isOnBase={isOnBase}>
-              <PauseGuard paused={paused}>
-                {/* A — Deposit / Repay */}
-                <section style={{ display: "grid", gap: 10 }}>
-                  <label className="text-sm" style={{ opacity: 0.95 }} htmlFor="amt">
-                    Amount (ETH)
-                  </label>
+            {address && vaults.length === 0 && (
+              <p className="small muted">
+                You don&apos;t have any vaults yet. Use{" "}
+                <strong>&ldquo;+ Create ETH vault&rdquo;</strong> to open your
+                first one.
+              </p>
+            )}
+
+            {address && vaults.length > 0 && (
+              <div className="vault-list">
+                {vaults.map((v) => (
+                  <button
+                    key={v.vaultId}
+                    onClick={() => setSelectedVaultId(v.vaultId)}
+                    className={
+                      selectedVaultId === v.vaultId
+                        ? "vault-list-item vault-list-item--active"
+                        : "vault-list-item"
+                    }
+                  >
+                    <div className="vault-list-main">
+                      <span className="vault-id">Vault #{v.vaultId}</span>
+                      <span className="vault-ltv small">
+                        LTV{" "}
+                        {Number(v.collateral) === 0
+                          ? "0%"
+                          : `${(
+                              (Number(v.debt) / Number(v.collateral)) *
+                              100
+                            ).toFixed(1)}%`}
+                      </span>
+                    </div>
+                    <div className="vault-list-sub small">
+                      <span>Collateral: {v.collateralEth} ETH</span>
+                      <span>Debt: {v.debtEth} ETH</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </article>
+        </section>
+
+        {/* Selected vault details */}
+        <section className="card card-full">
+          <header className="card-header">
+            <div>
+              <h2>ETH vault details</h2>
+              <p className="small muted">
+                Deposit ETH as collateral, borrow at 0% interest, repay to
+                withdraw. Max LTV 70%.
+              </p>
+            </div>
+            <button
+              onClick={refreshVaults}
+              disabled={screenState === "loading"}
+              className="btn-outline small"
+            >
+              Refresh
+            </button>
+          </header>
+
+          {!selectedVault ? (
+            <p className="small muted">
+              {address
+                ? "Select a vault from “My vaults” to see metrics and actions."
+                : "Connect your wallet and create a vault to start."}
+            </p>
+          ) : (
+            <>
+              {/* Metrics */}
+              <div className="metrics-grid">
+                <div className="metric">
+                  <div className="metric-label small">Collateral</div>
+                  <div className="metric-value">
+                    {selectedVault.collateralEth} <span>ETH</span>
+                  </div>
+                </div>
+                <div className="metric">
+                  <div className="metric-label small">Debt</div>
+                  <div className="metric-value">
+                    {selectedVault.debtEth} <span>ETH</span>
+                  </div>
+                </div>
+                <div className="metric">
+                  <div className="metric-label small">LTV</div>
+                  <div className="metric-value">{ltvPercent}%</div>
+                </div>
+                <div className="metric">
+                  <div className="metric-label small">Max extra borrow</div>
+                  <div className="metric-value">
+                    {maxBorrowEth} <span>ETH</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="actions-grid">
+                {/* Deposit */}
+                <div className="action-block">
+                  <div className="action-title">Deposit</div>
                   <input
-                    id="amt"
                     type="number"
                     min="0"
-                    step="any"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full p-2 border border-gray-400 rounded bg-transparent text-center"
-                  />
-                  <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
-                    <button
-                      className="ge-btn"
-                      style={{ width: "49%" }}
-                      onClick={onDeposit}
-                      disabled={
-                        loading || !validAmount || !account || !isOnBase || (sameBlockAsBorrow && !overrideLoopGuard)
-                      }
-                      title={sameBlockAsBorrow && !overrideLoopGuard ? "Wait 1 block or enable override" : undefined}
-                    >
-                      {sameBlockAsBorrow && !overrideLoopGuard ? "Wait 1 block…" : "Deposit"}
-                    </button>
-                    <button
-                      className="ge-btn"
-                      style={{ width: "49%" }}
-                      onClick={onRepay}
-                      disabled={loading || !validAmount || !account || !isOnBase}
-                    >
-                      Repay
-                    </button>
-                  </div>
-                  {sameBlockAsBorrow && (
-                    <label className="mt-1 flex items-center gap-2 text-sm opacity-80">
-                      <input
-                        type="checkbox"
-                        checked={overrideLoopGuard}
-                        onChange={(e) => setOverrideLoopGuard(e.target.checked)}
-                      />
-                      I know what I’m doing (override guard)
-                    </label>
-                  )}
-                </section>
-
-                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0.9rem 0" }} />
-
-                {/* B — Borrow target */}
-                <section>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: "0.9rem",
-                      opacity: 0.9,
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span>Borrow target</span>
-                    <span>{targetPct}% of limit</span>
-                  </div>
-                  <input
-                    aria-label="Borrow target percentage"
-                    type="range"
-                    min={0}
-                    max={70}
-                    step={1}
-                    value={targetPct}
-                    onChange={(e) => setTargetPct(Number(e.target.value))}
-                    className="ge-range"
+                    step="0.0001"
+                    placeholder="Amount in ETH"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="input"
                   />
                   <button
-                    onClick={onBorrowToTarget}
-                    className="ge-btn"
-                    style={{ width: "100%", marginTop: 10 }}
-                    disabled={loading || !account || !isOnBase}
+                    onClick={handleDeposit}
+                    disabled={screenState === "loading"}
+                    className="btn-primary small"
                   >
-                    Borrow
+                    Deposit collateral
                   </button>
-                </section>
-
-                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0.9rem 0" }} />
-
-                {/* C — Métricas */}
-                <section style={{ display: "grid", gap: 6 }}>
-                  <p>
-                    <b>Collateral:</b> {collateralEth.toFixed(4)} ETH (${usd(collateralEth)})
-                  </p>
-                  <p>
-                    <b>Debt:</b> {borrowedEth.toFixed(4)} ETH (${usd(borrowedEth)})
-                  </p>
-                  <p>
-                    <b>Max borrow:</b> {limitEth.toFixed(4)} ETH (${usd(limitEth)})
-                  </p>
-                  <p>
-                    <b>Available to borrow:</b>{" "}
-                    {Math.max(limitEth - borrowedEth, 0).toFixed(4)} ETH (${usd(Math.max(limitEth - borrowedEth, 0))})
-                  </p>
-                  <div className="ge-bar" style={{ marginTop: 6 }}>
-                    <span
-                      style={{
-                        width: `${Math.min((borrowedEth / Math.max(limitEth, 1e-9)) * 100, 100).toFixed(2)}%`,
-                        background:
-                          borrowedEth / Math.max(limitEth, 1e-9) < 0.4
-                            ? "#16a34a"
-                            : borrowedEth / Math.max(limitEth, 1e-9) < 0.6
-                            ? "#eab308"
-                            : borrowedEth / Math.max(limitEth, 1e-9) <= 0.7
-                            ? "#f59e0b"
-                            : "#ef4444",
-                      }}
-                    />
-                  </div>
-                </section>
-
-                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0.9rem 0" }} />
-
-                {/* D — Withdraw */}
-                <section style={{ display: "grid", gap: 10 }}>
-                  <div className="row" style={{ alignItems: "center" }}>
-                    <label htmlFor="wd" style={{ minWidth: 90 }}>
-                      Withdraw
-                    </label>
-                    <input
-                      id="wd"
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="Amount (ETH)"
-                      value={wdAmt}
-                      onChange={(e) => setWdAmt(e.target.value)}
-                      className="flex-1 p-2 border border-gray-400 rounded bg-transparent text-right"
-                    />
-                  </div>
-
-                  {validWd ? (
-                    <>
-                      <p style={{ fontSize: "0.9rem", opacity: 0.9 }}>
-                        To withdraw <b>{wdNum.toFixed(6)} ETH</b>, you must first repay at least{" "}
-                        <b>{repayNeededFor(wdNum).toFixed(6)} ETH</b> (if any) to keep LTV ≤ 70%.
-                      </p>
-                      <button
-                        onClick={onRepayThenWithdraw}
-                        className="ge-btn"
-                        style={{ width: "100%" }}
-                        disabled={loading || !validWd || !account || !isOnBase}
-                      >
-                        Withdraw
-                      </button>
-                    </>
-                  ) : (
-                    wdAmt && <p style={{ color: "#f87171", fontSize: "0.85rem" }}>Enter a valid amount ≤ your collateral</p>
-                  )}
-
-                  <div
-                    style={{
-                      marginTop: 6,
-                      padding: 10,
-                      border: "1px dashed #555",
-                      borderRadius: 8,
-                      background: "transparent",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    <div style={{ marginBottom: 6 }}>
-                      To withdraw <b>100% of your collateral</b>, you must first fully repay your outstanding debt:{" "}
-                      <b>{repayNeededAll.toFixed(6)} ETH</b>. The app can do this automatically for you.
-                    </div>
-                    <button
-                      onClick={onWithdrawAllFlow}
-                      className="ge-btn"
-                      style={{ width: "100%" }}
-                      disabled={loading || collateralEth <= 0 || !account || !isOnBase}
-                    >
-                      Withdraw ALL
-                    </button>
-                  </div>
-                </section>
-              </PauseGuard>
-            </NetworkGuard>
-
-            <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0.9rem 0" }} />
-
-            <p style={{ fontSize: "0.9rem", opacity: 0.95 }}>
-              Protocol fee: <b>0.25%</b> on <b>deposit</b> and <b>withdrawal</b> only. Borrow and repay have no protocol fee.
-            </p>
-            <p style={{ fontSize: "0.85rem", opacity: 0.85 }}>
-              Users pay their own L2 gas. ETH↔WETH wrapping/unwrapping is 1:1 (no conversion fee — gas only). Any third-party costs are paid by the user.
-            </p>
-
-            <div className="mt-3 flex justify-center">
-              <button onClick={refresh} className="ge-btn">● Refresh</button>
-            </div>
-
-            {/* History */}
-            {hist.length > 0 && (
-              <>
-                <hr style={{ border: "none", borderTop: "1px solid #333", margin: "0.9rem 0" }} />
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <b>History</b>
-                    <button className="ge-btn small" onClick={() => setHistExpanded((v) => !v)}>
-                      {histExpanded ? "Collapse history" : "Expand history"}
-                    </button>
-                  </div>
-                  <ul style={{ marginTop: 6, fontSize: "0.9rem", opacity: 0.9 }}>
-                    {shownHist.map((h, i) => (
-                      <li key={i} style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>{new Date(h.t).toLocaleString(LOCALE)}</span>
-                        <span style={{ textTransform: "capitalize" }}>{h.action}</span>
-                        <span>{h.amount.toFixed(6)} ETH</span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
 
-        {/* Toast */}
-        {toast && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 24,
-              left: "50%",
-              transform: "translateX(-50%)",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid #666",
-              padding: "8px 12px",
-              borderRadius: 8,
-              zIndex: 1200,
-            }}
-          >
-            {toast}
-          </div>
-        )}
+                {/* Borrow */}
+                <div className="action-block">
+                  <div className="action-title">Borrow</div>
+                  <div className="action-row small muted">
+                    <span>Receive asset</span>
+                    <select
+                      value={receiveAsset}
+                      onChange={(e) =>
+                        setReceiveAsset(e.target.value as ReceiveAsset)
+                      }
+                      className="select"
+                    >
+                      <option value="ETH">ETH</option>
+                      <option value="USDC">USDC</option>
+                      <option value="USDT">USDT</option>
+                      <option value="DAI">DAI</option>
+                    </select>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    placeholder="Amount in ETH"
+                    value={borrowAmount}
+                    onChange={(e) => setBorrowAmount(e.target.value)}
+                    className="input"
+                  />
+                  <div className="action-row small muted">
+                    <span>Max: {maxBorrowEth} ETH</span>
+                    <button
+                      type="button"
+                      onClick={() => setBorrowAmount(maxBorrowEth)}
+                      className="link-button"
+                    >
+                      Use max
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleBorrow}
+                    disabled={screenState === "loading"}
+                    className="btn-primary small"
+                  >
+                    Borrow at 0% interest
+                  </button>
+                </div>
+
+                {/* Repay */}
+                <div className="action-block">
+                  <div className="action-title">Repay</div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    placeholder="Amount in ETH"
+                    value={repayAmount}
+                    onChange={(e) => setRepayAmount(e.target.value)}
+                    className="input"
+                  />
+                  <div className="action-row small muted">
+                    <span>Current debt: {selectedVault.debtEth} ETH</span>
+                    <button
+                      type="button"
+                      onClick={() => setRepayAmount(selectedVault.debtEth)}
+                      className="link-button"
+                    >
+                      Repay all
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleRepay}
+                    disabled={screenState === "loading"}
+                    className="btn-outline small"
+                  >
+                    Repay
+                  </button>
+                </div>
+
+                {/* Withdraw */}
+                <div className="action-block">
+                  <div className="action-title">Withdraw</div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.0001"
+                    placeholder="Amount in ETH"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="input"
+                  />
+                  <div className="action-row small muted">
+                    <span>
+                      Collateral: {selectedVault.collateralEth} ETH (respect
+                      70% LTV when withdrawing)
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleWithdraw}
+                    disabled={screenState === "loading"}
+                    className="btn-outline small"
+                  >
+                    Withdraw collateral
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {status && <div className="status-box small">{status}</div>}
+
+          <p className="small muted">
+            No liquidation risk. Max LTV hard-coded at 70%. Fees: 0.25% on
+            deposit &amp; withdrawal only. Borrow &amp; repay have no protocol
+            fee (gas only).
+          </p>
+        </section>
       </main>
 
-      <footer className="ge-page-footer">© {new Date().getFullYear()} GranEverest · {isOnBase ? "Base" : "Base Sepolia"}</footer>
+      {/* Styles (reusing same tokens as landing/trust + app-specific) */}
+      <style jsx global>{`
+        :root {
+          --bg: #0f0f0f;
+          --text: #e7e7e7;
+          --muted: #bdbdbd;
+          --card: #111;
+          --border: #222;
+          --btn-bg: #ffffff;
+          --btn-fg: #111;
+          --brand: var(--text);
+          --link: var(--text);
+        }
+        html[data-theme="light"] {
+          --bg: #ffffff;
+          --text: #111;
+          --muted: #666;
+          --card: #fafafa;
+          --border: #e5e5e5;
+          --btn-bg: #ffffff;
+          --btn-fg: #111;
+          --brand: #111;
+          --link: #111;
+        }
+
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          background: var(--bg);
+          color: var(--text);
+          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+            Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        a {
+          color: var(--link);
+          text-decoration: none;
+        }
+
+        .wrap {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 16px 20px 96px;
+        }
+
+        .nav {
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 20px;
+          background: var(--bg);
+        }
+
+        .brand {
+          color: var(--brand) !important;
+          font-weight: 600;
+          font-size: 15px;
+        }
+
+        .nav-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px 12px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--btn-bg);
+          color: var(--btn-fg) !important;
+          font-size: 13px;
+          line-height: 1;
+          cursor: pointer;
+        }
+
+        .small {
+          font-size: 13px;
+          color: var(--muted);
+        }
+
+        .muted {
+          color: var(--muted);
+        }
+
+        .borrow-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-top: 10px;
+        }
+
+        .borrow-network {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .borrow-connect {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--card);
+        }
+
+        .wallet-chip {
+          padding: 4px 8px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--card);
+        }
+
+        .btn-outline,
+        .btn-primary {
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          padding: 6px 10px;
+          background: transparent;
+          color: var(--text);
+          cursor: pointer;
+        }
+
+        .btn-primary {
+          background: var(--btn-bg);
+          color: var(--btn-fg);
+        }
+
+        .btn-outline:disabled,
+        .btn-primary:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+
+        .banner-warning {
+          margin-top: 10px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid #b38a00;
+          background: rgba(179, 138, 0, 0.08);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
+        .borrow-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 18px;
+          margin-top: 20px;
+        }
+
+        @media (max-width: 900px) {
+          .borrow-grid {
+            grid-template-columns: 1fr;
+          }
+          .borrow-top {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+        }
+
+        .card {
+          background: var(--card);
+          border-radius: 12px;
+          border: 1px solid var(--border);
+          padding: 16px 18px;
+        }
+
+        .card-full {
+          margin-top: 20px;
+        }
+
+        .card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .product-card {
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          padding: 14px 14px 12px;
+          background: rgba(0, 0, 0, 0.1);
+        }
+
+        html[data-theme="light"] .product-card {
+          background: rgba(0, 0, 0, 0.02);
+        }
+
+        .product-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+
+        .product-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          margin: 8px 0 10px;
+        }
+
+        .vault-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 8px;
+        }
+
+        .vault-list-item {
+          width: 100%;
+          text-align: left;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          background: rgba(0, 0, 0, 0.1);
+          padding: 8px 10px;
+          cursor: pointer;
+        }
+
+        html[data-theme="light"] .vault-list-item {
+          background: rgba(0, 0, 0, 0.02);
+        }
+
+        .vault-list-item--active {
+          border-color: #ccc;
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .vault-list-main {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+        }
+
+        .vault-list-sub {
+          display: flex;
+          justify-content: space-between;
+          gap: 6px;
+          margin-top: 2px;
+        }
+
+        .vault-id {
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .vault-ltv {
+          font-size: 12px;
+        }
+
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
+        @media (max-width: 900px) {
+          .metrics-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        .metric {
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          padding: 10px;
+        }
+
+        .metric-label {
+          margin-bottom: 4px;
+        }
+
+        .metric-value {
+          font-size: 14px;
+        }
+
+        .metric-value span {
+          font-size: 12px;
+        }
+
+        .actions-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        @media (max-width: 900px) {
+          .actions-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .action-block {
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          padding: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .action-title {
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .action-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 6px;
+        }
+
+        .input,
+        .select {
+          width: 100%;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          padding: 6px 8px;
+          background: transparent;
+          color: var(--text);
+          font-size: 13px;
+        }
+
+        .select {
+          width: auto;
+        }
+
+        .link-button {
+          background: none;
+          border: none;
+          padding: 0;
+          color: var(--link);
+          cursor: pointer;
+          text-decoration: underline;
+          font-size: 12px;
+        }
+
+        .status-box {
+          margin-bottom: 8px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          background: rgba(0, 0, 0, 0.12);
+        }
+
+        html[data-theme="light"] .status-box {
+          background: rgba(0, 0, 0, 0.03);
+        }
+      `}</style>
     </>
   );
 }
