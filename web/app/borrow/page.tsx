@@ -345,9 +345,6 @@ function BorrowScreen() {
           <Link href="/trust" className="pill">
             Trust
           </Link>
-          <Link href="/borrow" className="pill">
-            Launch app
-          </Link>
           <button
             type="button"
             className="pill"

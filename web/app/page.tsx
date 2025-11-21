@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // ===== Theme boot (shared behaviour) =====
 function useThemeBoot() {
@@ -16,7 +17,10 @@ function useThemeBoot() {
         window.matchMedia?.("(prefers-color-scheme: dark)").matches;
       const isDark = saved ? saved === "dark" : !!prefersDark;
       setDark(isDark);
-      document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+      document.documentElement.setAttribute(
+        "data-theme",
+        isDark ? "dark" : "light"
+      );
     } catch {
       // ignore
     }
@@ -24,7 +28,10 @@ function useThemeBoot() {
 
   useEffect(() => {
     try {
-      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+      document.documentElement.setAttribute(
+        "data-theme",
+        dark ? "dark" : "light"
+      );
       localStorage.setItem("geTheme", dark ? "dark" : "light");
     } catch {
       // ignore
@@ -34,54 +41,31 @@ function useThemeBoot() {
   return { dark, setDark };
 }
 
-// ===== ASCII mountain =====
-const MOUNTAIN_ASCII = String.raw`
-             +           
-                        =+                        
-                                                                                   ===-                                                                                   
-                                                                                  =+=----                                                                                 
-                                                                                +++++---=--                                                                               
-                                                                               ++**++--=-=-=                                                                              
-                                                                             ++++++*=---==-=-                                                                             
-                                                                            +++++***+--------=-                                                                           
-                                                                          +++++******=---------=                                                                          
-                                                                         ++++++******+=----------                                                                         
-                                                                        ++*+++*+******=--------=--=                                                                       
-                                                                      +++++**********+-----==------=                                                                      
-                                                                     ++**+********++=-=----------------                                                                   
-                                                                   =++**+*****+**+=---==------==-------=                                                                  
-                                                                 =++++*#***********---=-==-----==------=-=                                                                
-                                                                ++++*****++*#+***#**=-----=---=--===----=--                                                               
-                                                               ++**+*+++******####*++=-----=-----=-==------=                                                              
-                                                              ++*#**++**+*######*+--===-----=------===-------                                                             
-                                                            =++***++*############=---===-----==---=-===--=--==                                                            
-                                                          ++++***+######**#+###**=----=-=-----===----===--==---=                                                          
-                                                         ++*+****######**+*##**###+-----==------==-----==--=-=----                                                         
-                                                    +++++++*#*+#######*++###**#####*--------------++-----======+=----=                                                    
-                                                 +++++++*++**+#######+**###*+#*######*=----------=-=+--==--=-===+=--=+=-=-                                                
-                                                +#++++**+++++*###*##+#####***###########-----------===---=---====++++++---==                                              
-                                              ++**#+=++=++++#**##**+####*#**#############=---------===+---=-====+*+++++=-----                                            
-                                            ++*#******+++++**#*#+++#####*+#####*###########+--------===+=-----=++++++++==-----=                                          
-                                           ***++#####*##**+*++*++####*#***######*##*########--------=-====-----=+++=++#+++=----=                                         
-                                          ++++**########++++++*####***+**####*##############=---=-------===------==+++**+++++-----                                        
-                                      +++*+++++###++##*++=+++#####*##+*###*###*##*##########+---==+++=---==-------=+++++++++=+=--===                                     
-                                    *#*=-==+++=+++*+=++==+++#####+*++*#####*+*########%##%#++----=++*=-----=--------=+*+++++=++=---==-                                    
-                                   *###+-----==+++++====+**####+*++++*#++#++++######%##==---=------=+++=-----==-=----=+++=+++++++----=-=                                  
-                                 ######++=---------==++++++**++**+*+**+++++**########*##------------=++===------=---=--=++==+=++===--=+=--                                 
-                               +######***#+---=+=--=--====+++++++*+**+++++*#########++###=----------===++=-----------===-====+=+++=-----====                              
-                             +##########*+++*+==++--===--==++**++++++++++######*++==++*+--+-------===-=++++===--------==+=-=+==++=++------==-=                            
-                           *##*##########**+##+-++++----=---===+++++++*########+-----------+*=---=-=++=-+++*+*+=-----=--==+===*+=+++++---------                           
-                          ################**###*=-=+++==-===---=++++*###########+-----------=+*+-----==++=++*+++=---------=+=--=+++=++++----==---=                        
-                        *#######*#########*+*###*=--==++=+-==+==+++++++**########+----=----==-+**+=--=--++****#***+---------===-==+++=+++=--====-==                       
-                       *####*+*#####*+#####+=+####+=--==++++==+*+++++=++###########=--+++----=++##*+--+===+##**####*#*#=--------=--=+++=+++---======                      
-                      ###############++###*#+++###++++=-==++*++++==+###########%#%##%+-++**+==-=++###+=+#++++*#####*###**#=--===-----=-++++++--==++==                     
-                    #####**###########*++#####++*###++*#*+===+==*##########%#%%##%#####+=+=##+=++=+####++*###**##*###*##*#***==+++=------=++++==+=====                    
-                   *#########%#########**################+#*++##%#################%############***####*##++*#######*##########*==++++==+==*#*##*+=+++==+                  
-                 #*#######################+#################%%##############%%#%%##%##%##########*###*###++##*#########*#####**##++***###**+#***#++++++++                 
-                #############%#%#%#%##%##########*###########%%%%%%#%#%##%%%##%%%##%##############*##*#########*#########**######%#*+###*##%#*#+###*#*##*+                
-              *#######%#%##%%##%%#%#%%#%#######%#%#%###%#%%%#%%#%#%#%%%%#%#%%#%%#%%%%#%##%#%###%######*#################%#######%#############%############*              
- +#######*##########*###############################*############################################*###*######*###############*#*###############*##+  
-`;
+// ===== Reusable Launch button with delay =====
+function LaunchButton({ className }: { className?: string }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+
+  function handleClick() {
+    if (pending) return;
+    setPending(true);
+    setTimeout(() => {
+      router.push("/borrow");
+      setPending(false);
+    }, 800); // ~0.8s delay
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`pill ${className ?? ""}`}
+      disabled={pending}
+    >
+      {pending ? "Launching…" : "Launch app"}
+    </button>
+  );
+}
 
 // ===== Component =====
 export default function Home() {
@@ -98,9 +82,7 @@ export default function Home() {
           <Link href="/trust" className="pill">
             Trust
           </Link>
-          <Link href="/borrow" className="pill">
-            Launch app
-          </Link>
+          <LaunchButton />
           <button
             id="themeToggle"
             className="pill"
@@ -114,9 +96,13 @@ export default function Home() {
 
       {/* MAIN */}
       <main className="wrap">
-        {/* Mountain */}
-        <section className="ge-mountain-wrap center" aria-hidden="true">
-          <pre className="ge-mountain">{MOUNTAIN_ASCII}</pre>
+        {/* Mountain image */}
+        <section className="hero-mountain center" aria-hidden="true">
+          <img
+            src="/assets/mountain-hero.png"
+            alt="GranEverest mountain"
+            className="hero-mountain-img"
+          />
         </section>
 
         <h1 className="center">Borrow at 0% Interest in ETH</h1>
@@ -127,9 +113,7 @@ export default function Home() {
         </p>
 
         <p className="center" style={{ marginTop: 12 }}>
-          <Link href="/borrow" className="pill">
-            Open app
-          </Link>
+          <LaunchButton />
           <a href="#features" className="pill" style={{ marginLeft: 8 }}>
             Learn more
           </a>
@@ -140,8 +124,8 @@ export default function Home() {
           <article className="feature">
             <h3>0% interest (ETH)</h3>
             <p className="small">
-              No interest on collateral or debt. No ongoing protocol fee. Only
-              network gas.
+              No interest on collateral or debt. Your debt doesn&apos;t grow
+              over time; you repay exactly what you borrowed.
             </p>
           </article>
           <article className="feature">
@@ -169,8 +153,8 @@ export default function Home() {
               limit (70% LTV).
             </li>
             <li>
-              <b>Borrow ETH at 0%.</b> Your debt unit is ETH. No interest. No
-              ongoing protocol fee.
+              <b>Borrow ETH at 0%.</b> Your debt unit is ETH. No interest.
+              Borrow/repay have no protocol fee.
             </li>
             <li>
               <b>Repay to withdraw.</b> Withdraw collateral after repaying
@@ -201,9 +185,7 @@ export default function Home() {
             </p>
           </details>
           <p className="center" style={{ marginTop: 18 }}>
-            <Link href="/borrow" className="pill">
-              Open app
-            </Link>
+            <LaunchButton />
           </p>
         </section>
       </main>
@@ -220,7 +202,6 @@ export default function Home() {
           --btn-fg: #111;
           --brand: var(--text);
           --link: var(--text);
-          --mountain: #d6d6d6;
         }
         html[data-theme="light"] {
           --bg: #ffffff;
@@ -232,7 +213,6 @@ export default function Home() {
           --btn-fg: #111;
           --brand: #111;
           --link: #111;
-          --mountain: #333;
         }
         html,
         body {
@@ -241,7 +221,7 @@ export default function Home() {
           background: var(--bg);
           color: var(--text);
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-            Helvetica, Arial;
+            Helvetica, Arial, sans-serif;
         }
         a {
           color: var(--link);
@@ -297,35 +277,15 @@ export default function Home() {
           text-align: center;
         }
 
-        /* Mountain */
-        .ge-mountain-wrap {
-          max-width: 1100px;
-          margin: 1.6rem auto 0.75rem;
+        .hero-mountain {
+          margin: 32px auto 16px;
           text-align: center;
-          overflow-x: auto;
-          overflow-y: hidden;
-          -webkit-overflow-scrolling: touch;
         }
-        .ge-mountain-wrap::-webkit-scrollbar {
-          display: none;
-          width: 0;
-          height: 0;
-        }
-        .ge-mountain {
-          font-family: ui-monospace, Consolas, Menlo, Monaco, monospace;
+        .hero-mountain-img {
+          max-width: 520px;
+          width: 100%;
+          height: auto;
           display: inline-block;
-          white-space: pre;
-          font-size: clamp(2.6px, 0.65vw, 8px);
-          line-height: 0.68em;
-          letter-spacing: 0.28px;
-          color: var(--mountain);
-          opacity: 0.95;
-        }
-        @media (max-width: 360px) {
-          .ge-mountain {
-            font-size: 2.4px;
-            letter-spacing: 0.22px;
-          }
         }
 
         .features {

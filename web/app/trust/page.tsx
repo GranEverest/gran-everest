@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LaunchAppButton } from "../components/LaunchAppButton";
 
 // Reuse the same theme boot logic as home
 function useThemeBoot() {
@@ -58,9 +59,7 @@ export default function TrustPage() {
           <Link href="/trust" className="pill">
             Trust
           </Link>
-          <Link href="/borrow" className="pill">
-            Launch app
-          </Link>
+          <LaunchAppButton className="pill">Launch app</LaunchAppButton>
           <button
             type="button"
             className="pill"
@@ -74,11 +73,11 @@ export default function TrustPage() {
       {/* MAIN */}
       <main className="wrap">
         <header className="trust-header">
-          <h1>Trust, risk &amp; transparency</h1>
+          <h1>Trust &amp; transparency</h1>
           <p className="small">
             GranEverest Loans is an ETH vault deployed on Base. This page
-            summarises the contract that is live, who controls what, and what
-            risks you take by using it. This is not investment advice.
+            summarises the live contract, who controls what, and the main
+            operating parameters of the vault. This is not investment advice.
           </p>
         </header>
 
@@ -96,7 +95,10 @@ export default function TrustPage() {
                 Contract type: <strong>EverestVault</strong> (single ETH vault
                 with 0% interest).
               </li>
-              <li>Status: deployed and active (not paused at the time of this writing).</li>
+              <li>
+                Status: deployed and active (not paused at the time of this
+                writing).
+              </li>
               <li>
                 You can verify the contract and source code directly on the Base
                 explorer by searching the vault address.
@@ -144,34 +146,6 @@ export default function TrustPage() {
                 transaction.
               </li>
               <li>No liquidations: there is no liquidation engine.</li>
-            </ul>
-          </article>
-
-          {/* Risks you take */}
-          <article className="trust-card">
-            <h2>Risks you take</h2>
-            <ul className="small">
-              <li>
-                Smart contract risk: the contract has not been audited. Bugs can
-                lead to partial or total loss of funds.
-              </li>
-              <li>
-                Key / operator risk: the owner can pause or unpause the vault.
-                If the key is compromised or used in bad faith, the protocol can
-                be frozen or manipulated.
-              </li>
-              <li>
-                L2 risk: Base is an Ethereum L2. You depend on Base security and
-                its bridge. A failure in the L2 could affect funds.
-              </li>
-              <li>
-                No guarantee of being &quot;safest&quot; or &quot;best
-                yield&quot;. Capital use remains your own decision.
-              </li>
-              <li>
-                Upgrade risk: if a new version of the vault is deployed, you
-                would need to migrate manually (there is no auto-upgrade).
-              </li>
             </ul>
           </article>
 
