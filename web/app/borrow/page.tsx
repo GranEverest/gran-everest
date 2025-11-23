@@ -25,9 +25,9 @@ type ScreenState = "idle" | "loading";
 
 const queryClient = new QueryClient();
 
-// ---------- Theme hook (same behaviour as landing/trust) ----------
+// -------- Theme hook (igual que landing/trust, default LIGHT) --------
 function useThemeBoot() {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     try {
@@ -61,6 +61,10 @@ function useThemeBoot() {
 
   return { dark, setDark };
 }
+
+// ---- storage keys para nombres / ocultos ----
+const STORAGE_VAULT_NAMES = "geVaultNames";
+const STORAGE_HIDDEN_VAULTS = "geHiddenVaults";
 
 // ---------------------------------------------------------------------
 // Wrapper con providers
@@ -115,9 +119,58 @@ function BorrowScreen() {
   const [receiveAsset, setReceiveAsset] = useState<ReceiveAsset>("ETH");
   const [mounted, setMounted] = useState(false);
 
+  // nombres / ocultos (solo UI, localStorage)
+  const [vaultNames, setVaultNames] = useState<Record<number, string>>({});
+  const [hiddenVaultIds, setHiddenVaultIds] = useState<number[]>([]);
+  const [showHidden, setShowHidden] = useState(false);
+
+  // modales
+  const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [hideTargetId, setHideTargetId] = useState<number | null>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // cargar estado UI desde localStorage
+  useEffect(() => {
+    try {
+      const namesRaw = localStorage.getItem(STORAGE_VAULT_NAMES);
+      if (namesRaw) {
+        setVaultNames(JSON.parse(namesRaw));
+      }
+      const hiddenRaw = localStorage.getItem(STORAGE_HIDDEN_VAULTS);
+      if (hiddenRaw) {
+        const arr = JSON.parse(hiddenRaw);
+        if (Array.isArray(arr)) {
+          setHiddenVaultIds(arr);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // persistir
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_VAULT_NAMES, JSON.stringify(vaultNames));
+    } catch {
+      // ignore
+    }
+  }, [vaultNames]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_HIDDEN_VAULTS,
+        JSON.stringify(hiddenVaultIds)
+      );
+    } catch {
+      // ignore
+    }
+  }, [hiddenVaultIds]);
 
   const primaryConnector = connectors[0];
 
@@ -246,12 +299,12 @@ function BorrowScreen() {
     try {
       const amountEthStr = borrowAmount;
 
-      // 1) Borrow in ETH from the vault
+      // 1) Borrow en ETH del vault
       await borrow(selectedVaultId, amountEthStr);
       setBorrowAmount("");
       await refreshVaults();
 
-      // 2) Optional swap
+      // 2) Swap opcional
       if (receiveAsset !== "ETH" && address) {
         setStatus(`Borrow done. Swapping to ${receiveAsset}…`);
         try {
@@ -331,7 +384,69 @@ function BorrowScreen() {
     }
   }
 
+  // ---- helpers rename/hide ----
+  function labelForVault(v: VaultView): string {
+    return vaultNames[v.vaultId] ?? `Vault #${v.vaultId}`;
+  }
+
+  function openRenameModal(v: VaultView) {
+    const current = labelForVault(v);
+    setRenameTargetId(v.vaultId);
+    setRenameDraft(current);
+    setHideTargetId(null);
+  }
+
+  function applyRename() {
+    if (renameTargetId === null) return;
+    const trimmed = renameDraft.trim();
+    setVaultNames((prev) => ({
+      ...prev,
+      [renameTargetId]: trimmed || `Vault #${renameTargetId}`,
+    }));
+    setRenameTargetId(null);
+    setRenameDraft("");
+  }
+
+  function cancelRename() {
+    setRenameTargetId(null);
+    setRenameDraft("");
+  }
+
+  function openHideModal(vaultId: number) {
+    setHideTargetId(vaultId);
+    setRenameTargetId(null);
+  }
+
+  function applyHide() {
+    if (hideTargetId === null) return;
+    setHiddenVaultIds((prev) =>
+      prev.includes(hideTargetId) ? prev : [...prev, hideTargetId]
+    );
+    setHideTargetId(null);
+  }
+
+  function cancelHide() {
+    setHideTargetId(null);
+  }
+
+  function unhideVault(vaultId: number) {
+    setHiddenVaultIds((prev) => prev.filter((id) => id !== vaultId));
+  }
+
   if (!mounted) return null;
+
+  // vaults con estado de UI mezclado
+  const vaultsWithUi = vaults.map((v) => ({
+    ...v,
+    uiLabel: labelForVault(v),
+    uiHidden: hiddenVaultIds.includes(v.vaultId),
+  }));
+
+  const displayedVaults = vaultsWithUi.filter((v) =>
+    showHidden ? true : !v.uiHidden
+  );
+
+  const hasOverlay = renameTargetId !== null || hideTargetId !== null;
 
   // ---------- UI ----------
   return (
@@ -372,7 +487,7 @@ function BorrowScreen() {
                 </span>
                 <button
                   onClick={() => disconnect()}
-                  className="btn-outline small"
+                  className="btn-primary small"
                 >
                   Disconnect
                 </button>
@@ -383,7 +498,7 @@ function BorrowScreen() {
                 onClick={() =>
                   primaryConnector && connect({ connector: primaryConnector })
                 }
-                className="btn-outline small"
+                className="btn-primary small"
               >
                 {isConnecting ? "Connecting…" : "Connect wallet"}
               </button>
@@ -399,7 +514,7 @@ function BorrowScreen() {
             {switchChain && (
               <button
                 onClick={() => switchChain({ chainId: CHAIN.id })}
-                className="btn-outline small"
+                className="btn-primary small"
               >
                 Switch
               </button>
@@ -429,7 +544,8 @@ function BorrowScreen() {
                 <div>
                   Contract:{" "}
                   <code>
-                    {contractAddress.slice(0, 8)}…{contractAddress.slice(-4)}
+                    {contractAddress.slice(0, 8)}…
+                    {contractAddress.slice(-4)}
                   </code>
                 </div>
               </div>
@@ -451,14 +567,27 @@ function BorrowScreen() {
 
           {/* My vaults list */}
           <article className="card">
-            <h2>My vaults</h2>
+            <div className="my-vaults-header">
+              <h2>My vaults</h2>
+              {address && vaultsWithUi.length > 0 && (
+                <label className="show-hidden-toggle small">
+                  <input
+                    type="checkbox"
+                    checked={showHidden}
+                    onChange={(e) => setShowHidden(e.target.checked)}
+                  />
+                  <span>Show hidden vaults</span>
+                </label>
+              )}
+            </div>
+
             {!address && (
               <p className="small muted">
                 Connect your wallet to create and manage vaults.
               </p>
             )}
 
-            {address && vaults.length === 0 && (
+            {address && vaultsWithUi.length === 0 && (
               <p className="small muted">
                 You don&apos;t have any vaults yet. Use{" "}
                 <strong>&ldquo;+ Create ETH vault&rdquo;</strong> to open your
@@ -466,9 +595,9 @@ function BorrowScreen() {
               </p>
             )}
 
-            {address && vaults.length > 0 && (
+            {address && displayedVaults.length > 0 && (
               <div className="vault-list">
-                {vaults.map((v) => (
+                {displayedVaults.map((v) => (
                   <button
                     key={v.vaultId}
                     onClick={() => setSelectedVaultId(v.vaultId)}
@@ -479,7 +608,7 @@ function BorrowScreen() {
                     }
                   >
                     <div className="vault-list-main">
-                      <span className="vault-id">Vault #{v.vaultId}</span>
+                      <span className="vault-id">{v.uiLabel}</span>
                       <span className="vault-ltv small">
                         LTV{" "}
                         {Number(v.collateral) === 0
@@ -493,6 +622,45 @@ function BorrowScreen() {
                     <div className="vault-list-sub small">
                       <span>Collateral: {v.collateralEth} ETH</span>
                       <span>Debt: {v.debtEth} ETH</span>
+                    </div>
+                    <div className="vault-list-actions small">
+                      <button
+                        type="button"
+                        className="vault-inline-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openRenameModal(v);
+                        }}
+                      >
+                        Rename
+                      </button>
+                      <span className="vault-inline-separator">·</span>
+                      {v.uiHidden ? (
+                        <button
+                          type="button"
+                          className="vault-inline-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unhideVault(v.vaultId);
+                          }}
+                        >
+                          Unhide
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="vault-inline-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openHideModal(v.vaultId);
+                          }}
+                        >
+                          Hide
+                        </button>
+                      )}
+                      {v.uiHidden && (
+                        <span className="vault-hidden-tag small">Hidden</span>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -514,7 +682,7 @@ function BorrowScreen() {
             <button
               onClick={refreshVaults}
               disabled={screenState === "loading"}
-              className="btn-outline small"
+              className="btn-primary small"
             >
               Refresh
             </button>
@@ -648,7 +816,7 @@ function BorrowScreen() {
                   <button
                     onClick={handleRepay}
                     disabled={screenState === "loading"}
-                    className="btn-outline small"
+                    className="btn-primary small"
                   >
                     Repay
                   </button>
@@ -675,7 +843,7 @@ function BorrowScreen() {
                   <button
                     onClick={handleWithdraw}
                     disabled={screenState === "loading"}
-                    className="btn-outline small"
+                    className="btn-primary small"
                   >
                     Withdraw collateral
                   </button>
@@ -694,29 +862,93 @@ function BorrowScreen() {
         </section>
       </main>
 
-      {/* Styles (reusing same tokens as landing/trust + app-specific) */}
+      {/* Modales rename / hide */}
+      {hasOverlay && (
+        <div className="modal-backdrop">
+          {renameTargetId !== null && (
+            <div className="modal">
+              <h3 className="modal-title">Rename vault</h3>
+              <p className="small muted" style={{ marginBottom: 8 }}>
+                Set a custom name for this vault.
+              </p>
+              <input
+                autoFocus
+                className="input modal-input"
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                placeholder={`Vault #${renameTargetId}`}
+              />
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary small"
+                  onClick={cancelRename}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary small"
+                  onClick={applyRename}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          )}
+
+          {hideTargetId !== null && (
+            <div className="modal">
+              <h3 className="modal-title">Hide vault?</h3>
+              <p className="small muted" style={{ marginBottom: 12 }}>
+                This only hides the vault in your browser. It does not delete or
+                close it on-chain. You can reveal it again with &ldquo;Show
+                hidden vaults&rdquo;.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary small"
+                  onClick={cancelHide}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary small"
+                  onClick={applyHide}
+                >
+                  Hide vault
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Styles (tokens + app-specific) */}
       <style jsx global>{`
         :root {
           --bg: #0f0f0f;
           --text: #e7e7e7;
           --muted: #bdbdbd;
-          --card: #111;
-          --border: #222;
+          --card: #111111;
+          --border: #222222;
           --btn-bg: #ffffff;
-          --btn-fg: #111;
+          --btn-fg: #111111;
           --brand: var(--text);
           --link: var(--text);
         }
         html[data-theme="light"] {
           --bg: #ffffff;
-          --text: #111;
-          --muted: #666;
+          --text: #111111;
+          --muted: #666666;
           --card: #fafafa;
           --border: #e5e5e5;
           --btn-bg: #ffffff;
-          --btn-fg: #111;
-          --brand: #111;
-          --link: #111;
+          --btn-fg: #111111;
+          --brand: #111111;
+          --link: #111111;
         }
 
         html,
@@ -813,7 +1045,8 @@ function BorrowScreen() {
           padding: 2px 8px;
           border-radius: 999px;
           border: 1px solid var(--border);
-          background: var(--card);
+          background: var(--btn-bg);
+          color: var(--btn-fg);
         }
 
         .wallet-chip {
@@ -823,23 +1056,23 @@ function BorrowScreen() {
           background: var(--card);
         }
 
-        .btn-outline,
-        .btn-primary {
-          border-radius: 8px;
+        .btn-primary,
+        .btn-secondary {
+          border-radius: 999px;
           border: 1px solid var(--border);
-          padding: 6px 10px;
-          background: transparent;
-          color: var(--text);
+          padding: 6px 12px;
+          background: var(--btn-bg);
+          color: var(--btn-fg);
           cursor: pointer;
         }
 
-        .btn-primary {
-          background: var(--btn-bg);
-          color: var(--btn-fg);
+        .btn-secondary {
+          background: transparent;
+          color: var(--text);
         }
 
-        .btn-outline:disabled,
-        .btn-primary:disabled {
+        .btn-primary:disabled,
+        .btn-secondary:disabled {
           opacity: 0.5;
           cursor: default;
         }
@@ -847,7 +1080,7 @@ function BorrowScreen() {
         .banner-warning {
           margin-top: 10px;
           padding: 8px 10px;
-          border-radius: 8px;
+          border-radius: 10px;
           border: 1px solid #b38a00;
           background: rgba(179, 138, 0, 0.08);
           display: flex;
@@ -918,6 +1151,13 @@ function BorrowScreen() {
           margin: 8px 0 10px;
         }
 
+        .my-vaults-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+
         .vault-list {
           display: flex;
           flex-direction: column;
@@ -930,18 +1170,13 @@ function BorrowScreen() {
           text-align: left;
           border-radius: 10px;
           border: 1px solid var(--border);
-          background: rgba(0, 0, 0, 0.1);
+          background: var(--card);
           padding: 8px 10px;
           cursor: pointer;
         }
 
-        html[data-theme="light"] .vault-list-item {
-          background: rgba(0, 0, 0, 0.02);
-        }
-
         .vault-list-item--active {
-          border-color: #ccc;
-          background: rgba(255, 255, 255, 0.06);
+          border-color: #cccccc;
         }
 
         .vault-list-main {
@@ -961,10 +1196,64 @@ function BorrowScreen() {
         .vault-id {
           font-size: 13px;
           font-weight: 500;
+          color: var(--text);
         }
 
         .vault-ltv {
           font-size: 12px;
+        }
+
+        .vault-list-actions {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 4px;
+        }
+
+        .vault-inline-button {
+          border: none;
+          background: none;
+          padding: 0;
+          font-size: 12px;
+          color: var(--text);
+          cursor: pointer;
+        }
+
+        .vault-inline-button:hover {
+          opacity: 0.8;
+        }
+
+        .vault-inline-separator {
+          opacity: 0.5;
+        }
+
+        .vault-hidden-tag {
+          margin-left: 6px;
+          padding: 1px 6px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+        }
+
+        .show-hidden-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+        }
+
+        .show-hidden-toggle input {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--btn-bg);
+          margin: 0;
+          cursor: pointer;
+        }
+
+        .show-hidden-toggle input:checked {
+          box-shadow: 0 0 0 1px var(--border);
         }
 
         .metrics-grid {
@@ -1032,19 +1321,28 @@ function BorrowScreen() {
           gap: 6px;
         }
 
-        .input,
-        .select {
+        .input {
           width: 100%;
-          border-radius: 8px;
+          border-radius: 999px;
           border: 1px solid var(--border);
-          padding: 6px 8px;
-          background: transparent;
+          padding: 6px 10px;
+          background: var(--card); /* dark: card (negro), light se override abajo */
           color: var(--text);
           font-size: 13px;
         }
 
+        html[data-theme="light"] .input {
+          background: #ffffff;
+          color: #111111;
+        }
+
         .select {
-          width: auto;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          padding: 4px 10px;
+          background: var(--btn-bg);
+          color: var(--btn-fg);
+          font-size: 13px;
         }
 
         .link-button {
@@ -1067,6 +1365,43 @@ function BorrowScreen() {
 
         html[data-theme="light"] .status-box {
           background: rgba(0, 0, 0, 0.03);
+        }
+
+        /* Modales */
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 40;
+        }
+
+        .modal {
+          width: 100%;
+          max-width: 360px;
+          background: var(--card);
+          border-radius: 16px;
+          border: 1px solid var(--border);
+          padding: 18px 18px 16px;
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        .modal-title {
+          margin: 0 0 6px;
+          font-size: 16px;
+        }
+
+        .modal-input {
+          margin-top: 4px;
+        }
+
+        .modal-actions {
+          margin-top: 14px;
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
         }
       `}</style>
     </>

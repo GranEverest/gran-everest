@@ -5,18 +5,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LaunchAppButton } from "../components/LaunchAppButton";
 
-// Reuse the same theme boot logic as home
+// Reuse the same theme boot logic as home, default LIGHT
 function useThemeBoot() {
-  const [dark, setDark] = useState(true);
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("geTheme");
-      const prefersDark =
-        typeof window !== "undefined" &&
-        window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-
-      const isDark = saved ? saved === "dark" : !!prefersDark;
+      const isDark = saved === "dark";
       setDark(isDark);
       document.documentElement.setAttribute(
         "data-theme",
@@ -42,7 +38,7 @@ function useThemeBoot() {
   return { dark, setDark };
 }
 
-const LAST_UPDATED = "2025-11-19";
+const LAST_UPDATED = "2025-11-22";
 
 export default function TrustPage() {
   const { dark, setDark } = useThemeBoot();
@@ -73,11 +69,11 @@ export default function TrustPage() {
       {/* MAIN */}
       <main className="wrap">
         <header className="trust-header">
-          <h1>Trust &amp; transparency</h1>
+          <h1>Trust, risk &amp; transparency</h1>
           <p className="small">
             GranEverest Loans is an ETH vault deployed on Base. This page
-            summarises the live contract, who controls what, and the main
-            operating parameters of the vault. This is not investment advice.
+            summarises the contract that is live, who controls what, and the
+            main technical parameters. This is not investment advice.
           </p>
         </header>
 
@@ -88,12 +84,12 @@ export default function TrustPage() {
             <ul className="small">
               <li>Network: Base mainnet (Ethereum L2).</li>
               <li>
-                Vault address:{" "}
-                <code>0xA3F0e117F200763b7FA37250BFF63CBF690364B4</code>
+                Vault contract:{" "}
+                <code>0x8A83E4349f4bd053cef3083F4219628957f54725</code>
               </li>
               <li>
-                Contract type: <strong>EverestVault</strong> (single ETH vault
-                with 0% interest).
+                Contract type: <strong>EverestVault</strong> (ETH-collateral
+                vault, 0% interest, no liquidations).
               </li>
               <li>
                 Status: deployed and active (not paused at the time of this
@@ -111,20 +107,20 @@ export default function TrustPage() {
             <h2>Roles &amp; control</h2>
             <ul className="small">
               <li>
-                <strong>Owner / Guardian:</strong> the operator&apos;s hardware
-                wallet (Trezor).
+                <strong>Owner:</strong> a Safe wallet on Base (1/1 signer,
+                hardware-backed).
               </li>
               <li>
                 The owner can: <strong>pause</strong> and{" "}
-                <strong>unpause</strong> the vault.
+                <strong>unpause</strong> the vault contract.
               </li>
               <li>
-                The fee recipient address is controlled by the same owner
-                (protocol treasury).
+                The same Safe controls fee parameters and any future contract
+                migrations.
               </li>
               <li>
-                Future goal: migrate these permissions to a multisig + time
-                lock. Today it is a single key (key compromise risk).
+                Long-term goal: expand the Safe to a multi-sig setup with
+                multiple hardware wallets and time-based controls.
               </li>
             </ul>
           </article>
@@ -141,9 +137,8 @@ export default function TrustPage() {
                 only. Borrow and repay have no protocol fee (gas only).
               </li>
               <li>
-                Anti-loop guard: a same-block rule prevents deposit-after-borrow
-                loops that would otherwise enable leverage loops in one
-                transaction.
+                Anti-loop guard: the vault design prevents simple leverage loops
+                from being used as “free extra cash”.
               </li>
               <li>No liquidations: there is no liquidation engine.</li>
             </ul>
@@ -154,11 +149,11 @@ export default function TrustPage() {
             <h2>Operational commitments</h2>
             <ul className="small">
               <li>
-                The owner will use pause/unpause only to protect users in case
-                of unexpected behaviour or incidents.
+                The Safe owner uses pause/unpause only as a protective measure
+                in case of unexpected behaviour or incidents.
               </li>
               <li>
-                Any change to parameters or contract versions will be
+                Any relevant change to parameters or contract versions will be
                 communicated via official channels and reflected on this page.
               </li>
               <li>
@@ -167,7 +162,7 @@ export default function TrustPage() {
               </li>
               <li>
                 We do not guarantee profitability or returns; the protocol is an
-                experimental product and you use it at your own risk.
+                experimental product and you use it at your own discretion.
               </li>
             </ul>
           </article>
@@ -184,17 +179,7 @@ export default function TrustPage() {
       {/* Styles specific for this page (reusing same tokens as home) */}
       <style jsx global>{`
         :root {
-          --bg: #0f0f0f;
-          --text: #e7e7e7;
-          --muted: #bdbdbd;
-          --card: #111;
-          --border: #222;
-          --btn-bg: #ffffff;
-          --btn-fg: #111;
-          --brand: var(--text);
-          --link: var(--text);
-        }
-        html[data-theme="light"] {
+          /* LIGHT por defecto */
           --bg: #ffffff;
           --text: #111;
           --muted: #666;
@@ -204,6 +189,17 @@ export default function TrustPage() {
           --btn-fg: #111;
           --brand: #111;
           --link: #111;
+        }
+        html[data-theme="dark"] {
+          --bg: #0f0f0f;
+          --text: #e7e7e7;
+          --muted: #bdbdbd;
+          --card: #111;
+          --border: #222;
+          --btn-bg: #ffffff;
+          --btn-fg: #111;
+          --brand: var(--text);
+          --link: var(--text);
         }
 
         html,

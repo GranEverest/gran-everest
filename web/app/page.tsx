@@ -7,15 +7,13 @@ import { useRouter } from "next/navigation";
 
 // ===== Theme boot (shared behaviour) =====
 function useThemeBoot() {
-  const [dark, setDark] = useState(true);
+  // default: light
+  const [dark, setDark] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("geTheme");
-      const prefersDark =
-        typeof window !== "undefined" &&
-        window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-      const isDark = saved ? saved === "dark" : !!prefersDark;
+      const isDark = saved === "dark";
       setDark(isDark);
       document.documentElement.setAttribute(
         "data-theme",
@@ -97,9 +95,9 @@ export default function Home() {
       {/* MAIN */}
       <main className="wrap">
         {/* Mountain image */}
-        <section className="hero-mountain center" aria-hidden="true">
+        <section className="hero-mountain-wrap" aria-hidden="true">
           <img
-            src="/assets/mountain-hero.png"
+            src="/assets/mountain-hero.png?v=2"
             alt="GranEverest mountain"
             className="hero-mountain-img"
           />
@@ -193,17 +191,7 @@ export default function Home() {
       {/* Global styles for landing */}
       <style jsx global>{`
         :root {
-          --bg: #0f0f0f;
-          --text: #e7e7e7;
-          --muted: #bdbdbd;
-          --card: #111;
-          --border: #222;
-          --btn-bg: #ffffff;
-          --btn-fg: #111;
-          --brand: var(--text);
-          --link: var(--text);
-        }
-        html[data-theme="light"] {
+          /* LIGHT theme defaults (page se ve blanca por defecto) */
           --bg: #ffffff;
           --text: #111;
           --muted: #666;
@@ -214,6 +202,18 @@ export default function Home() {
           --brand: #111;
           --link: #111;
         }
+        html[data-theme="dark"] {
+          --bg: #0f0f0f;
+          --text: #e7e7e7;
+          --muted: #bdbdbd;
+          --card: #111;
+          --border: #222;
+          --btn-bg: #ffffff;
+          --btn-fg: #111;
+          --brand: var(--text);
+          --link: var(--text);
+        }
+
         html,
         body {
           margin: 0;
@@ -223,15 +223,18 @@ export default function Home() {
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
             Helvetica, Arial, sans-serif;
         }
+
         a {
           color: var(--link);
           text-decoration: none;
         }
+
         h1,
         h2,
         h3 {
           margin: 0.75rem 0;
         }
+
         .wrap {
           max-width: 980px;
           margin: 0 auto;
@@ -249,16 +252,19 @@ export default function Home() {
           padding: 12px 16px;
           background: var(--bg);
         }
+
         .brand {
           color: var(--brand) !important;
           font-weight: 600;
           font-size: 15px;
         }
+
         .nav-right {
           display: flex;
           align-items: center;
           gap: 8px;
         }
+
         .pill {
           display: inline-flex;
           align-items: center;
@@ -277,15 +283,24 @@ export default function Home() {
           text-align: center;
         }
 
-        .hero-mountain {
+        .hero-mountain-wrap {
           margin: 32px auto 16px;
           text-align: center;
         }
+
         .hero-mountain-img {
           max-width: 520px;
           width: 100%;
           height: auto;
           display: inline-block;
+          /* corrimiento a la derecha para centrar la montaña visualmente */
+          transform: translateX(18px);
+        }
+
+        @media (max-width: 600px) {
+          .hero-mountain-img {
+            transform: translateX(10px);
+          }
         }
 
         .features {
@@ -294,12 +309,14 @@ export default function Home() {
           gap: 22px;
           margin-top: 26px;
         }
+
         .feature {
           background: var(--card);
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 14px;
         }
+
         .small {
           color: var(--muted);
           font-size: 13px;
