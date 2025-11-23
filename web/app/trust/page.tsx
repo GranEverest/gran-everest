@@ -1,11 +1,10 @@
-// web/app/trust/page.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { LaunchAppButton } from "../components/LaunchAppButton";
+import { useRouter } from "next/navigation";
 
-// Reuse the same theme boot logic as home, default LIGHT
+// ===== Theme boot (same behaviour as landing) =====
 function useThemeBoot() {
   const [dark, setDark] = useState(false);
 
@@ -38,27 +37,49 @@ function useThemeBoot() {
   return { dark, setDark };
 }
 
-const LAST_UPDATED = "2025-11-22";
+// ===== Reusable Launch button with delay (same as landing) =====
+function LaunchButton({ className }: { className?: string }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
 
+  function handleClick() {
+    if (pending) return;
+    setPending(true);
+    setTimeout(() => {
+      router.push("/borrow");
+      setPending(false);
+    }, 800);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`pill ${className ?? ""}`}
+      disabled={pending}
+    >
+      {pending ? "Launching…" : "Launch app"}
+    </button>
+  );
+}
+
+// ===== Page =====
 export default function TrustPage() {
   const { dark, setDark } = useThemeBoot();
 
   return (
     <>
-      {/* NAVBAR */}
+      {/* NAV (no Trust button here) */}
       <nav className="nav">
         <Link className="brand" href="/">
           GranEverest
         </Link>
-
         <div className="nav-right">
-          <Link href="/trust" className="pill">
-            Trust
-          </Link>
-          <LaunchAppButton className="pill">Launch app</LaunchAppButton>
+          <LaunchButton />
           <button
-            type="button"
+            id="themeToggle"
             className="pill"
+            type="button"
             onClick={() => setDark((v) => !v)}
           >
             {dark ? "Light" : "Dark"}
@@ -67,119 +88,222 @@ export default function TrustPage() {
       </nav>
 
       {/* MAIN */}
-      <main className="wrap">
-        <header className="trust-header">
-          <h1>Trust, risk &amp; transparency</h1>
-          <p className="small">
-            GranEverest Loans is an ETH vault deployed on Base. This page
-            summarises the contract that is live, who controls what, and the
-            main technical parameters. This is not investment advice.
+      <main className="trust-wrap">
+        <p className="trust-kicker">GranEverest · ETH Vault</p>
+        <h1 className="trust-h1">Trust</h1>
+        <p className="trust-lead">
+          Transparent contracts, capped risk, and a simple vault model. No
+          liquidation risk. No hidden levers.
+        </p>
+
+        {/* On-chain setup */}
+        <section className="trust-section">
+          <h2 className="trust-h2">On-chain setup</h2>
+          <p className="trust-lead">
+            Everything important lives on Base. You can verify all addresses and
+            interactions directly onchain.
           </p>
-        </header>
 
-        <section className="trust-grid">
-          {/* Contract in production */}
-          <article className="trust-card">
-            <h2>Contract in production</h2>
-            <ul className="small">
-              <li>Network: Base mainnet (Ethereum L2).</li>
-              <li>
-                Vault contract:{" "}
-                <code>0x8A83E4349f4bd053cef3083F4219628957f54725</code>
-              </li>
-              <li>
-                Contract type: <strong>EverestVault</strong> (ETH-collateral
-                vault, 0% interest, no liquidations).
-              </li>
-              <li>
-                Status: deployed and active (not paused at the time of this
-                writing).
-              </li>
-              <li>
-                You can verify the contract and source code directly on the Base
-                explorer by searching the vault address.
-              </li>
-            </ul>
-          </article>
-
-          {/* Roles & control */}
-          <article className="trust-card">
-            <h2>Roles &amp; control</h2>
-            <ul className="small">
-              <li>
-                <strong>Owner:</strong> a Safe wallet on Base (1/1 signer,
-                hardware-backed).
-              </li>
-              <li>
-                The owner can: <strong>pause</strong> and{" "}
-                <strong>unpause</strong> the vault contract.
-              </li>
-              <li>
-                The same Safe controls fee parameters and any future contract
-                migrations.
-              </li>
-              <li>
-                Long-term goal: expand the Safe to a multi-sig setup with
-                multiple hardware wallets and time-based controls.
-              </li>
-            </ul>
-          </article>
-
-          {/* Key parameters */}
-          <article className="trust-card">
-            <h2>Key parameters</h2>
-            <ul className="small">
-              <li>Collateral: ETH only.</li>
-              <li>Debt unit: ETH.</li>
-              <li>Max LTV: 70% (borrow limit = 0.7 × collateral).</li>
-              <li>
-                Protocol fee: <strong>0.25%</strong> on deposit and withdrawal
+          <div className="trust-grid">
+            <div className="trust-card">
+              <h3 className="trust-h3">Production vault</h3>
+              <p className="trust-muted">
+                EverestVault — Base mainnet. The live ETH vault used by the
+                GranEverest borrow app. Debt unit is ETH, collateral is ETH, and
+                the protocol fee is <b>0.25%</b> on deposits and withdrawals
                 only. Borrow and repay have no protocol fee (gas only).
-              </li>
-              <li>
-                Anti-loop guard: the vault design prevents simple leverage loops
-                from being used as “free extra cash”.
-              </li>
-              <li>No liquidations: there is no liquidation engine.</li>
-            </ul>
-          </article>
+              </p>
 
-          {/* Operational commitments */}
-          <article className="trust-card">
-            <h2>Operational commitments</h2>
-            <ul className="small">
-              <li>
-                The Safe owner uses pause/unpause only as a protective measure
-                in case of unexpected behaviour or incidents.
-              </li>
-              <li>
-                Any relevant change to parameters or contract versions will be
-                communicated via official channels and reflected on this page.
-              </li>
-              <li>
-                There is no hidden logic: the same contract you interact with is
-                the one that executes your deposit, borrow, repay and withdraw.
-              </li>
-              <li>
-                We do not guarantee profitability or returns; the protocol is an
-                experimental product and you use it at your own discretion.
-              </li>
-            </ul>
-          </article>
+              <p className="trust-mono">
+                Vault address:{" "}
+                <a
+                  href="https://basescan.org/address/0x60786Bc484bDC031475f2a096C47fA7435793CB5"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="trust-address-chip"
+                >
+                  0x60786Bc484bDC031475f2a096C47fA7435793CB5
+                </a>
+              </p>
+
+              <ul className="trust-list">
+                <li>LTV hard-cap: 70% of collateral value.</li>
+                <li>No liquidation engine, no price oracle dependency.</li>
+                <li>Anti-loop same-block guard on borrow/deposit.</li>
+              </ul>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">Owner / guardian</h3>
+              <p className="trust-muted">Base mainnet</p>
+              <p className="trust-muted">
+                The same address currently acts as owner, guardian and
+                feeRecipient. Operationally, pausing/unpausing is done via
+                BaseScan with a hardware wallet, never from scripts that live in
+                this repo.
+              </p>
+
+              <p className="trust-mono">
+                Guardian / treasury:{" "}
+                <span className="trust-address-chip">
+                  0xF5e97BAc061FA8572b55cD7969452F4942448Be1
+                </span>
+              </p>
+
+              <ul className="trust-list">
+                <li>Can pause/unpause the vault contract.</li>
+                <li>
+                  Receives the 0.25% protocol fee on deposit/withdraw.
+                </li>
+                <li>No upgradeable proxy, no hidden implementation.</li>
+              </ul>
+            </div>
+          </div>
         </section>
 
-        <p className="trust-meta small">
-          Last updated: {LAST_UPDATED} ·{" "}
-          <Link href="/" className="trust-link">
-            Back to home
-          </Link>
-        </p>
+        {/* Risk caps */}
+        <section className="trust-section">
+          <h2 className="trust-h2">Risk caps &amp; guarantees</h2>
+          <div className="trust-grid">
+            <div className="trust-card">
+              <p className="trust-muted">
+                We keep the product intentionally narrow: single-asset ETH
+                vault, explicit LTV cap, and no liquidation logic.
+              </p>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">No liquidation risk</h3>
+              <p className="trust-muted">
+                The vault does not implement liquidations or price oracles. Your
+                position cannot be forcibly liquidated by the protocol. You can
+                always repay and withdraw within the LTV constraints.
+              </p>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">LTV ≤ 70%</h3>
+              <p className="trust-muted">
+                Borrowing is enforced onchain to 70% maximum LTV. Both unit
+                tests and fuzz tests validate that the LTV never exceeds this
+                threshold under any tested sequence.
+              </p>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">Pause behaviour</h3>
+              <p className="trust-muted">
+                When paused, the vault blocks deposit, borrow and withdrawal,
+                but <b>repay remains allowed</b>, so users can still reduce risk
+                and close positions while the protocol is paused.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Testing & analysis */}
+        <section className="trust-section">
+          <h2 className="trust-h2">Testing &amp; analysis</h2>
+          <div className="trust-grid trust-grid-3">
+            <div className="trust-card">
+              <h3 className="trust-h3">Hardhat tests</h3>
+              <p className="trust-mono">npx hardhat test — 17/17 tests passing.</p>
+              <ul className="trust-list">
+                <li>Anti-loop: same-block borrow + deposit blocked.</li>
+                <li>Fee accounting on deposit/withdraw (0.25%).</li>
+                <li>Borrow, repay and withdraw edge cases.</li>
+                <li>Pause/unpause and allowed actions while paused.</li>
+              </ul>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">Slither static analysis</h3>
+              <p className="trust-muted">
+                slither . --compile-force-framework hardhat — latest run
+                completed with only informational findings (mainly in
+                OpenZeppelin libraries, test helpers and the intentional
+                same-block guard / ETH send patterns). No high-severity issues
+                were identified in the production vault logic.
+              </p>
+              <p className="trust-muted">
+                This is not a replacement for a full manual audit, but it&apos;s
+                an extra automated layer on top of tests and fuzzing.
+              </p>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">Foundry fuzzing</h3>
+              <p className="trust-mono">
+                forge test -vv — 4 fuzz tests passing (256 runs each) on the ETH
+                vault model:
+              </p>
+              <ul className="trust-list">
+                <li>Debt never becomes negative.</li>
+                <li>
+                  ETH conservation across deposit/withdraw and
+                  deposit/borrow/repay flows.
+                </li>
+                <li>LTV never exceeds 70% under fuzzed scenarios.</li>
+              </ul>
+              <p className="trust-muted" style={{ marginTop: 8 }}>
+                Full details, commands and interpretations are documented in the
+                latest report:
+                <br />
+                <a
+                  href="/assets/everest-vault-test-report-2025-11-23.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="trust-download-link"
+                >
+                  Download EverestVault test &amp; analysis report (PDF)
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Bug bounty & roadmap */}
+        <section className="trust-section">
+          <h2 className="trust-h2">Bug bounty &amp; roadmap</h2>
+          <div className="trust-grid">
+            <div className="trust-card">
+              <h3 className="trust-h3">Bug bounty</h3>
+              <p className="trust-muted">
+                A dedicated vault/balance is reserved for bug bounties on
+                critical findings that affect user funds in the EverestVault on
+                Base. The bounty terms will be published publicly and updated
+                over time.
+              </p>
+              <p className="trust-muted">
+                Until a formal program is live, responsible disclosure can be
+                initiated via the official contact channels listed on the main
+                site.
+              </p>
+            </div>
+
+            <div className="trust-card">
+              <h3 className="trust-h3">What&apos;s next</h3>
+              <ul className="trust-list">
+                <li>External security review / audit.</li>
+                <li>Expanded documentation for integrators.</li>
+                <li>Optional additional risk caps at the app layer.</li>
+              </ul>
+              <p className="trust-muted">
+                The goal is to keep the protocol simple, observable and
+                defensible: one ETH vault, no hidden complexity, and clear risk
+                boundaries.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Last updated (bottom, above global footer) */}
+        <p className="trust-updated">Last updated: 2025-11-23</p>
       </main>
 
-      {/* Styles specific for this page (reusing same tokens as home) */}
+      {/* Styles */}
       <style jsx global>{`
         :root {
-          /* LIGHT por defecto */
           --bg: #ffffff;
           --text: #111;
           --muted: #666;
@@ -208,8 +332,8 @@ export default function TrustPage() {
           padding: 0;
           background: var(--bg);
           color: var(--text);
-          font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-            Roboto, Helvetica, Arial, sans-serif;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+            Helvetica, Arial, sans-serif;
         }
 
         a {
@@ -217,21 +341,15 @@ export default function TrustPage() {
           text-decoration: none;
         }
 
-        .wrap {
-          max-width: 960px;
-          margin: 0 auto;
-          padding: 16px 20px 96px;
-        }
-
         .nav {
           position: sticky;
           top: 0;
-          z-index: 10;
+          z-index: 2;
           display: flex;
-          gap: 12px;
+          gap: 10px;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 20px;
+          padding: 12px 16px;
           background: var(--bg);
         }
 
@@ -252,46 +370,134 @@ export default function TrustPage() {
           align-items: center;
           justify-content: center;
           padding: 6px 12px;
-          border-radius: 999px;
+          border-radius: 12px;
           border: 1px solid var(--border);
           background: var(--btn-bg);
           color: var(--btn-fg) !important;
-          font-size: 13px;
+          font-size: 14px;
           line-height: 1;
           cursor: pointer;
         }
 
-        .trust-header h1 {
-          margin-top: 8px;
+        .trust-wrap {
+          max-width: 980px;
+          margin: 0 auto;
+          padding: 16px 20px 96px;
+        }
+
+        .trust-kicker {
+          font-size: 11px;
+          color: var(--muted);
           margin-bottom: 4px;
+        }
+
+        .trust-h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+
+        .trust-h2 {
+          margin: 24px 0 6px;
+          font-size: 18px;
+        }
+
+        .trust-h3 {
+          margin: 0 0 6px;
+          font-size: 14px;
+        }
+
+        .trust-lead {
+          font-size: 13px;
+          color: var(--muted);
+          max-width: 720px;
+        }
+
+        .trust-section {
+          margin-top: 26px;
         }
 
         .trust-grid {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 18px;
-          margin-top: 24px;
+          margin-top: 14px;
+        }
+
+        .trust-grid-3 {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .trust-card {
           background: var(--card);
           border: 1px solid var(--border);
           border-radius: 12px;
-          padding: 16px 18px;
+          padding: 14px 16px;
         }
 
-        .small {
+        .trust-muted {
+          font-size: 12px;
           color: var(--muted);
-          font-size: 13px;
+          margin: 0 0 6px;
         }
 
-        .trust-meta {
-          margin-top: 20px;
-          text-align: left;
+        .trust-mono {
+          margin: 6px 0 8px;
+          font-size: 11px;
+          color: var(--muted);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            "Liberation Mono", "Courier New", monospace;
         }
 
-        .trust-link {
+        .trust-list {
+          margin: 0;
+          padding-left: 18px;
+          font-size: 12px;
+          color: var(--muted);
+        }
+
+        .trust-list li + li {
+          margin-top: 2px;
+        }
+
+        .trust-address-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
+          border-radius: 999px;
+          border: 1px solid var(--border);
+          background: var(--card);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            "Liberation Mono", "Courier New", monospace;
+          font-size: 11px;
+          color: var(--text);
+          text-decoration: none;
+        }
+
+        .trust-address-chip:hover {
+          background: var(--bg);
+        }
+
+        .trust-download-link {
+          font-size: 12px;
+          color: var(--text);
           text-decoration: underline;
+        }
+
+        .trust-download-link:hover {
+          opacity: 0.85;
+        }
+
+        .trust-updated {
+          margin-top: 26px;
+          font-size: 11px;
+          color: var(--muted);
+        }
+
+        @media (max-width: 900px) {
+          .trust-grid,
+          .trust-grid-3 {
+            grid-template-columns: 1fr;
+          }
         }
       `}</style>
     </>
