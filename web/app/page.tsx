@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 // ===== Theme boot (shared behaviour) =====
@@ -62,6 +62,86 @@ function LaunchButton({ className }: { className?: string }) {
     >
       {pending ? "Launching…" : "Launch app"}
     </button>
+  );
+}
+
+// ===== Email capture block =====
+function EmailCapture() {
+  const [email, setEmail] = useState("");
+  const [pending, setPending] = useState(false);
+  const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (pending) return;
+
+    const trimmed = email.trim();
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+    if (!isValid) {
+      setStatus("error");
+      return;
+    }
+
+    setPending(true);
+    setStatus("idle");
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: trimmed,
+          source: "landing",
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Request failed");
+      }
+
+      setStatus("ok");
+      setEmail("");
+    } catch (err) {
+      console.error("Email subscribe error:", err);
+      setStatus("error");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="email-block">
+      <h2>Get updates by email</h2>
+      <p className="small">
+        Leave your email to hear about launches and security updates for the ETH
+        vault.
+      </p>
+      <form onSubmit={handleSubmit} className="email-form">
+        <input
+          type="email"
+          className="email-input"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <button type="submit" className="pill email-btn" disabled={pending}>
+          {pending ? "Saving…" : "Notify me"}
+        </button>
+      </form>
+      {status === "ok" && (
+        <p className="email-status email-status-ok">
+          Got it. We&apos;ll reach out by email when there&apos;s news.
+        </p>
+      )}
+      {status === "error" && (
+        <p className="email-status email-status-error">
+          Please enter a valid email address.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -186,6 +266,43 @@ export default function Home() {
             <LaunchButton />
           </p>
         </section>
+
+        {/* Email capture (newsletter-like) */}
+        <EmailCapture />
+
+        {/* Contact & docs */}
+        <section className="contact-block">
+          <h2>Contact &amp; docs</h2>
+          <p className="small">
+            Questions, issues or security findings? Email us at{" "}
+            <a
+              href="mailto:contact@graneverest.com"
+              className="contact-link"
+            >
+              contact@graneverest.com
+            </a>
+            .
+          </p>
+          <p className="small contact-links">
+            <Link href="/trust">Trust &amp; security</Link>
+            <span>·</span>
+            <a
+              href="/assets/everest-vault-test-report-2025-11-23.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Test &amp; analysis report (PDF)
+            </a>
+            <span>·</span>
+            <a
+              href="https://github.com/GranEverest/gran-everest"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+          </p>
+        </section>
       </main>
 
       {/* Global styles for landing */}
@@ -220,8 +337,8 @@ export default function Home() {
           padding: 0;
           background: var(--bg);
           color: var(--text);
-          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-            Helvetica, Arial, sans-serif;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI,
+            Roboto, Helvetica, Arial, sans-serif;
         }
 
         a {
@@ -320,6 +437,92 @@ export default function Home() {
         .small {
           color: var(--muted);
           font-size: 13px;
+        }
+
+        .email-block {
+          margin-top: 36px;
+          padding-top: 18px;
+          border-top: 1px solid var(--border);
+          text-align: center;
+        }
+
+        .email-block h2 {
+          font-size: 15px;
+          margin-bottom: 4px;
+        }
+
+        .email-form {
+          margin-top: 10px;
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .email-input {
+          min-width: 0;
+          width: 230px;
+          padding: 7px 10px;
+          border-radius: 10px;
+          border: 1px solid var(--border);
+          background: var(--bg);
+          color: var(--text);
+          font-size: 13px;
+          outline: none;
+        }
+
+        .email-input::placeholder {
+          color: var(--muted);
+        }
+
+        .email-btn {
+          padding-inline: 14px;
+          font-size: 13px;
+        }
+
+        .email-status {
+          margin-top: 8px;
+          font-size: 12px;
+        }
+
+        .email-status-ok {
+          color: var(--muted);
+        }
+
+        .email-status-error {
+          color: #b00020;
+        }
+
+        .contact-block {
+          margin-top: 32px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border);
+        }
+
+        .contact-block h2 {
+          font-size: 15px;
+          margin-bottom: 4px;
+        }
+
+        .contact-link,
+        .contact-links a {
+          color: var(--text);
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          font-size: 12px;
+        }
+
+        .contact-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          align-items: center;
+          margin-top: 8px;
+        }
+
+        .contact-links span {
+          color: var(--muted);
+          font-size: 12px;
         }
 
         @media (max-width: 900px) {

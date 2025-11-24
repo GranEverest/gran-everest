@@ -1,3 +1,4 @@
+// web/app/trust/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -332,8 +333,8 @@ export default function TrustPage() {
           padding: 0;
           background: var(--bg);
           color: var(--text);
-          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-            Helvetica, Arial, sans-serif;
+          font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI,
+            Roboto, Helvetica, Arial, sans-serif;
         }
 
         a {
