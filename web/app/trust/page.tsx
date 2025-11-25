@@ -70,12 +70,15 @@ export default function TrustPage() {
 
   return (
     <>
-      {/* NAV (no Trust button here) */}
+      {/* NAV (acá se mantiene Docs, sin botón Trust) */}
       <nav className="nav">
         <Link className="brand" href="/">
           GranEverest
         </Link>
         <div className="nav-right">
+          <Link href="/docs" className="pill">
+            Docs
+          </Link>
           <LaunchButton />
           <button
             id="themeToggle"

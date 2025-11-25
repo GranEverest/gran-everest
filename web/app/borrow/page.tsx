@@ -457,6 +457,9 @@ function BorrowScreen() {
           GranEverest
         </Link>
         <div className="nav-right">
+          <Link href="/docs" className="pill">
+            Docs
+          </Link>
           <Link href="/trust" className="pill">
             Trust
           </Link>
