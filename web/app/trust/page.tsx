@@ -118,12 +118,12 @@ export default function TrustPage() {
               <p className="trust-mono">
                 Vault address:{" "}
                 <a
-                  href="https://basescan.org/address/0x60786Bc484bDC031475f2a096C47fA7435793CB5"
+                  href="https://basescan.org/address/0x8A83E4349f4bd053cef3083F4219628957f54725"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="trust-address-chip"
                 >
-                  0x60786Bc484bDC031475f2a096C47fA7435793CB5
+                  0x8A83E4349f4bd053cef3083F4219628957f54725
                 </a>
               </p>
 
@@ -147,15 +147,13 @@ export default function TrustPage() {
               <p className="trust-mono">
                 Guardian / treasury:{" "}
                 <span className="trust-address-chip">
-                  0xF5e97BAc061FA8572b55cD7969452F4942448Be1
+                  0xF5e97BAc061FA8572b55cD7969452f9492448Be1
                 </span>
               </p>
 
               <ul className="trust-list">
                 <li>Can pause/unpause the vault contract.</li>
-                <li>
-                  Receives the 0.25% protocol fee on deposit/withdraw.
-                </li>
+                <li>Receives the 0.25% protocol fee on deposit/withdraw.</li>
                 <li>No upgradeable proxy, no hidden implementation.</li>
               </ul>
             </div>
@@ -208,7 +206,9 @@ export default function TrustPage() {
           <div className="trust-grid trust-grid-3">
             <div className="trust-card">
               <h3 className="trust-h3">Hardhat tests</h3>
-              <p className="trust-mono">npx hardhat test — 17/17 tests passing.</p>
+              <p className="trust-mono">
+                npx hardhat test — 17/17 tests passing.
+              </p>
               <ul className="trust-list">
                 <li>Anti-loop: same-block borrow + deposit blocked.</li>
                 <li>Fee accounting on deposit/withdraw (0.25%).</li>

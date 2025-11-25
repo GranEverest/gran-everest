@@ -86,7 +86,7 @@ function EmailCapture() {
     setStatus("idle");
 
     try {
-      const res = await fetch("/api/subscribe", {
+      const res = await fetch("/subscribe.php", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -99,6 +99,11 @@ function EmailCapture() {
 
       if (!res.ok) {
         throw new Error("Request failed");
+      }
+
+      const data = await res.json().catch(() => null);
+      if (!data || !data.ok) {
+        throw new Error("Bad response");
       }
 
       setStatus("ok");
@@ -160,6 +165,9 @@ export default function Home() {
           <Link href="/trust" className="pill">
             Trust
           </Link>
+          <Link href="/docs" className="pill">
+            Docs
+          </Link>
           <LaunchButton />
           <button
             id="themeToggle"
@@ -183,11 +191,14 @@ export default function Home() {
           />
         </section>
 
-        <h1 className="center">Borrow at 0% Interest in ETH</h1>
+        <h1 className="center">Borrow ETH with no liquidations. Ever.</h1>
         <p className="center small" style={{ maxWidth: 780, margin: "0 auto" }}>
-          Borrow <b>ETH</b>. Collateral in <b>ETH</b>. Debt in <b>ETH</b>. On
-          Base (Ethereum L2). Non-custodial. Open architecture. No liquidation
-          risk by design: we guide LTV and withdrawals to keep you safe.
+          One ETH vault on Base. No oracle, no liquidation engine, no changing
+          rates. A single <b>0.25%</b> fee on deposit and withdrawal. That&apos;s
+          it.
+        </p>
+        <p className="center small credit-line-tag">
+          An ETH credit line that can&apos;t liquidate you.
         </p>
 
         <p className="center" style={{ marginTop: 12 }}>
@@ -209,15 +220,15 @@ export default function Home() {
           <article className="feature">
             <h3>No liquidation risk</h3>
             <p className="small">
-              Clear LTV guidance and “repay to withdraw” rules keep your
-              position within safe bounds.
+              No oracle and no liquidation engine. As long as you respect the
+              70% LTV limit, the protocol can&apos;t liquidate you.
             </p>
           </article>
           <article className="feature">
             <h3>Transparent costs</h3>
             <p className="small">
-              Protocol fee <b>0.25%</b> only on deposit &amp; withdrawal.
-              Borrow/repay have no protocol fee.
+              A single protocol fee of <b>0.25%</b> on deposit &amp; withdrawal.
+              No variable interest, no changing parameters.
             </p>
           </article>
         </section>
@@ -284,6 +295,8 @@ export default function Home() {
             .
           </p>
           <p className="small contact-links">
+            <Link href="/docs">Docs</Link>
+            <span>·</span>
             <Link href="/trust">Trust &amp; security</Link>
             <span>·</span>
             <a
@@ -418,6 +431,11 @@ export default function Home() {
           .hero-mountain-img {
             transform: translateX(10px);
           }
+        }
+
+        .credit-line-tag {
+          margin-top: 6px;
+          margin-bottom: 4px;
         }
 
         .features {

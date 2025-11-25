@@ -3,9 +3,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "GranEverest — ETH Vault on Base",
+  title: "GranEverest — Borrow ETH with no liquidations. Ever.",
   description:
-    "Borrow ETH at 0% interest on Base. Debt in ETH. 0.25% protocol fee on deposits and withdrawals only.",
+    "Borrow ETH with no liquidations. One ETH vault on Base. No oracle, no liquidation engine, no changing rates. A single 0.25% fee on deposit and withdrawal. An ETH credit line that can't liquidate you.",
   icons: {
     icon: [
       { url: "/assets/favicon.svg", type: "image/svg+xml" },
