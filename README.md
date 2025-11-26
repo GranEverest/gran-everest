@@ -30,8 +30,7 @@ Monorepo for the GranEverest project:
 For more operational details see:
 
 - `web/app/trust/page.tsx`
-- `web/app/docs/everest-vault-multi-runbook.md`
-- `contracts/docs/everestvault-test-report-v2.pdf` (tests & analysis)
+- Internal runbooks and analysis reports (kept in a private repository)
 
 ---
 
