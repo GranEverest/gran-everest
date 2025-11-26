@@ -5,14 +5,18 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-// ===== Theme boot (same behaviour as landing) =====
+// ===== Theme boot (igual que landing/borrow) =====
 function useThemeBoot() {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("geTheme");
-      const isDark = saved === "dark";
+      const prefersDark =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+
+      const isDark = saved ? saved === "dark" : !!prefersDark;
       setDark(isDark);
       document.documentElement.setAttribute(
         "data-theme",
@@ -70,7 +74,7 @@ export default function TrustPage() {
 
   return (
     <>
-      {/* NAV (acá se mantiene Docs, sin botón Trust) */}
+      {/* NAV (Docs + Launch, sin botón Trust aquí) */}
       <nav className="nav">
         <Link className="brand" href="/">
           GranEverest
@@ -309,23 +313,23 @@ export default function TrustPage() {
       <style jsx global>{`
         :root {
           --bg: #ffffff;
-          --text: #111;
-          --muted: #666;
+          --text: #111111;
+          --muted: #666666;
           --card: #fafafa;
           --border: #e5e5e5;
           --btn-bg: #ffffff;
-          --btn-fg: #111;
-          --brand: #111;
-          --link: #111;
+          --btn-fg: #111111;
+          --brand: #111111;
+          --link: #111111;
         }
         html[data-theme="dark"] {
           --bg: #0f0f0f;
           --text: #e7e7e7;
           --muted: #bdbdbd;
-          --card: #111;
-          --border: #222;
+          --card: #111111;
+          --border: #222222;
           --btn-bg: #ffffff;
-          --btn-fg: #111;
+          --btn-fg: #111111;
           --brand: var(--text);
           --link: var(--text);
         }

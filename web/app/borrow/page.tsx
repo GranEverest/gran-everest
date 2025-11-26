@@ -25,7 +25,7 @@ type ScreenState = "idle" | "loading";
 
 const queryClient = new QueryClient();
 
-// -------- Theme hook (igual que landing/trust, default LIGHT) --------
+// -------- Theme hook (unificado con landing / trust) --------
 function useThemeBoot() {
   const [dark, setDark] = useState(false);
 
@@ -71,7 +71,7 @@ const STORAGE_HIDDEN_VAULTS = "geHiddenVaults";
 // ---------------------------------------------------------------------
 export default function BorrowPage() {
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={config} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         <BorrowScreen />
       </QueryClientProvider>
@@ -117,7 +117,6 @@ function BorrowScreen() {
   const [screenState, setScreenState] = useState<ScreenState>("idle");
 
   const [receiveAsset, setReceiveAsset] = useState<ReceiveAsset>("ETH");
-  const [mounted, setMounted] = useState(false);
 
   // nombres / ocultos (solo UI, localStorage)
   const [vaultNames, setVaultNames] = useState<Record<number, string>>({});
@@ -128,10 +127,6 @@ function BorrowScreen() {
   const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [hideTargetId, setHideTargetId] = useState<number | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // cargar estado UI desde localStorage
   useEffect(() => {
@@ -172,7 +167,37 @@ function BorrowScreen() {
     }
   }, [hiddenVaultIds]);
 
-  const primaryConnector = connectors[0];
+  // ---------------------------
+  // Elegimos conector según entorno (robusto)
+  // ---------------------------
+  const injectedConnector = connectors.find(
+    (c) =>
+      c.id === "injected" ||
+      c.name === "Browser Wallet" ||
+      c.id === "io.metamask.mobile" ||
+      c.id?.toLowerCase?.().includes("metamask")
+  );
+
+  const walletConnectConnector = connectors.find(
+    (c) => c.id === "walletConnect" || c.name === "WalletConnect"
+  );
+
+  function hasReadyProp(c: unknown): c is { ready: boolean } {
+    return !!c && typeof (c as any).ready === "boolean";
+  }
+
+  const hasWindowEthereum =
+    typeof window !== "undefined" && !!(window as any).ethereum;
+
+  const hasInjected =
+    !!injectedConnector &&
+    (hasReadyProp(injectedConnector)
+      ? injectedConnector.ready
+      : hasWindowEthereum);
+
+  const hasWalletConnect = !!walletConnectConnector;
+  const canConnect = hasInjected || hasWalletConnect;
+  // ---------------------------
 
   const isWrongNetwork =
     !!address && typeof chainId === "number" && chainId !== CHAIN.id;
@@ -233,14 +258,13 @@ function BorrowScreen() {
       setMaxBorrowEth("0.0");
       return;
     }
-    if (!mounted) return;
 
     const wrong = typeof chainId === "number" && chainId !== CHAIN.id;
     if (wrong) return;
 
     void refreshVaults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, chainId, mounted]);
+  }, [address, chainId]);
 
   async function handleCreateVault() {
     if (!address || isWrongNetwork) return;
@@ -299,12 +323,10 @@ function BorrowScreen() {
     try {
       const amountEthStr = borrowAmount;
 
-      // 1) Borrow en ETH del vault
       await borrow(selectedVaultId, amountEthStr);
       setBorrowAmount("");
       await refreshVaults();
 
-      // 2) Swap opcional
       if (receiveAsset !== "ETH" && address) {
         setStatus(`Borrow done. Swapping to ${receiveAsset}…`);
         try {
@@ -433,9 +455,6 @@ function BorrowScreen() {
     setHiddenVaultIds((prev) => prev.filter((id) => id !== vaultId));
   }
 
-  if (!mounted) return null;
-
-  // vaults con estado de UI mezclado
   const vaultsWithUi = vaults.map((v) => ({
     ...v,
     uiLabel: labelForVault(v),
@@ -497,13 +516,26 @@ function BorrowScreen() {
               </>
             ) : (
               <button
-                disabled={!primaryConnector || isConnecting}
-                onClick={() =>
-                  primaryConnector && connect({ connector: primaryConnector })
-                }
+                disabled={!canConnect || isConnecting}
+                onClick={() => {
+                  if (hasInjected && injectedConnector) {
+                    connect({ connector: injectedConnector });
+                    return;
+                  }
+                  if (hasWalletConnect && walletConnectConnector) {
+                    connect({ connector: walletConnectConnector });
+                    return;
+                  }
+                }}
                 className="btn-primary small"
               >
-                {isConnecting ? "Connecting…" : "Connect wallet"}
+                {isConnecting
+                  ? "Connecting…"
+                  : hasInjected
+                  ? "Connect wallet"
+                  : hasWalletConnect
+                  ? "Connect with WalletConnect"
+                  : "No wallet available"}
               </button>
             )}
           </div>
@@ -516,7 +548,11 @@ function BorrowScreen() {
             </span>
             {switchChain && (
               <button
-                onClick={() => switchChain({ chainId: CHAIN.id })}
+                onClick={() =>
+                  switchChain({
+                    chainId: CHAIN.id as 8453 | 84532,
+                  })
+                }
                 className="btn-primary small"
               >
                 Switch
@@ -699,7 +735,6 @@ function BorrowScreen() {
             </p>
           ) : (
             <>
-              {/* Metrics */}
               <div className="metrics-grid">
                 <div className="metric">
                   <div className="metric-label small">Collateral</div>
@@ -725,7 +760,6 @@ function BorrowScreen() {
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="actions-grid">
                 {/* Deposit */}
                 <div className="action-block">
@@ -839,8 +873,8 @@ function BorrowScreen() {
                   />
                   <div className="action-row small muted">
                     <span>
-                      Collateral: {selectedVault.collateralEth} ETH (respect
-                      70% LTV when withdrawing)
+                      Collateral: {selectedVault.collateralEth} ETH (respect 70%
+                      LTV when withdrawing)
                     </span>
                   </div>
                   <button
@@ -932,17 +966,6 @@ function BorrowScreen() {
       {/* Styles (tokens + app-specific) */}
       <style jsx global>{`
         :root {
-          --bg: #0f0f0f;
-          --text: #e7e7e7;
-          --muted: #bdbdbd;
-          --card: #111111;
-          --border: #222222;
-          --btn-bg: #ffffff;
-          --btn-fg: #111111;
-          --brand: var(--text);
-          --link: var(--text);
-        }
-        html[data-theme="light"] {
           --bg: #ffffff;
           --text: #111111;
           --muted: #666666;
@@ -952,6 +975,17 @@ function BorrowScreen() {
           --btn-fg: #111111;
           --brand: #111111;
           --link: #111111;
+        }
+        html[data-theme="dark"] {
+          --bg: #0f0f0f;
+          --text: #e7e7e7;
+          --muted: #bdbdbd;
+          --card: #111111;
+          --border: #222222;
+          --btn-bg: #ffffff;
+          --btn-fg: #111111;
+          --brand: var(--text);
+          --link: var(--text);
         }
 
         html,
@@ -1132,11 +1166,11 @@ function BorrowScreen() {
           border-radius: 10px;
           border: 1px solid var(--border);
           padding: 14px 14px 12px;
-          background: rgba(0, 0, 0, 0.1);
+          background: rgba(0, 0, 0, 0.02);
         }
 
-        html[data-theme="light"] .product-card {
-          background: rgba(0, 0, 0, 0.02);
+        html[data-theme="dark"] .product-card {
+          background: rgba(0, 0, 0, 0.1);
         }
 
         .product-header {
@@ -1329,14 +1363,14 @@ function BorrowScreen() {
           border-radius: 999px;
           border: 1px solid var(--border);
           padding: 6px 10px;
-          background: var(--card); /* dark: card (negro), light se override abajo */
-          color: var(--text);
+          background: #ffffff;
+          color: #111111;
           font-size: 13px;
         }
 
-        html[data-theme="light"] .input {
-          background: #ffffff;
-          color: #111111;
+        html[data-theme="dark"] .input {
+          background: var(--card);
+          color: var(--text);
         }
 
         .select {
@@ -1363,14 +1397,13 @@ function BorrowScreen() {
           padding: 8px 10px;
           border-radius: 8px;
           border: 1px solid var(--border);
-          background: rgba(0, 0, 0, 0.12);
-        }
-
-        html[data-theme="light"] .status-box {
           background: rgba(0, 0, 0, 0.03);
         }
 
-        /* Modales */
+        html[data-theme="dark"] .status-box {
+          background: rgba(0, 0, 0, 0.12);
+        }
+
         .modal-backdrop {
           position: fixed;
           inset: 0;
