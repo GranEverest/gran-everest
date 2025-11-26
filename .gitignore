@@ -7,6 +7,7 @@ dist/
 out/
 build/
 .cache/
+
 # Envs y secretos
 .env
 .env.*
@@ -14,23 +15,31 @@ web/.env.local
 contracts/.env
 **/*.key
 **/*keystore*
+
 # Backups/artefactos locales
 web/_hostinger_backup/
 *.zip
 gran-everest-main.bundle
 gran-everest/
+gran-repo/OldVault/gran-everest.rar
+
 # SO / editor
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Hardhat/Typechain artefacts
 contracts/artifacts/
 contracts/cache/
-contracts/typechain-types/# ==== Private docs (no subir a GitHub) ====
+contracts/typechain-types/
+
+# ==== Private docs (no subir a GitHub) ====
 /private-docs/
 /web/private-docs/
 /web/app/**/runbook-*.md
 /web/app/**/docs-internal/
-/contracts/private-docs/
+/contracts/private-docs/contracts/docs/
+/web/app/docs/
 
-g r a n - r e p o / O l d V a u l t / g r a n - e v e r e s t . r a r  
+
  
