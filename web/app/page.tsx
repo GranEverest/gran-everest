@@ -2,42 +2,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
-// ===== Theme boot (shared behaviour) =====
-function useThemeBoot() {
-  // default: light
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("geTheme");
-      const isDark = saved === "dark";
-      setDark(isDark);
-      document.documentElement.setAttribute(
-        "data-theme",
-        isDark ? "dark" : "light"
-      );
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      document.documentElement.setAttribute(
-        "data-theme",
-        dark ? "dark" : "light"
-      );
-      localStorage.setItem("geTheme", dark ? "dark" : "light");
-    } catch {
-      // ignore
-    }
-  }, [dark]);
-
-  return { dark, setDark };
-}
+import { useThemeBoot } from "@/hooks/useThemeBoot";
 
 // ===== Reusable Launch button with delay =====
 function LaunchButton({ className }: { className?: string }) {
@@ -50,7 +18,7 @@ function LaunchButton({ className }: { className?: string }) {
     setTimeout(() => {
       router.push("/borrow");
       setPending(false);
-    }, 800); // ~0.8s delay
+    }, 1000); // 1s delay
   }
 
   return (
@@ -120,8 +88,8 @@ function EmailCapture() {
     <section className="email-block">
       <h2>Get updates by email</h2>
       <p className="small">
-        Leave your email to hear about launches and security updates for the ETH
-        vault.
+        Leave your email to hear about launches, security updates and new vaults
+        on Base.
       </p>
       <form onSubmit={handleSubmit} className="email-form">
         <input
@@ -152,7 +120,7 @@ function EmailCapture() {
 
 // ===== Component =====
 export default function Home() {
-  const { dark, setDark } = useThemeBoot();
+  const { dark, toggleTheme } = useThemeBoot();
 
   return (
     <>
@@ -173,7 +141,7 @@ export default function Home() {
             id="themeToggle"
             className="pill"
             type="button"
-            onClick={() => setDark((v) => !v)}
+            onClick={toggleTheme}
           >
             {dark ? "Light" : "Dark"}
           </button>
@@ -191,14 +159,15 @@ export default function Home() {
           />
         </section>
 
-        <h1 className="center">Borrow ETH with no liquidations. Ever.</h1>
+        <h1 className="center">ETH credit line on Base. No liquidations.</h1>
         <p className="center small" style={{ maxWidth: 780, margin: "0 auto" }}>
-          One ETH vault on Base. No oracle, no liquidation engine, no changing
-          rates. A single <b>0.25%</b> fee on deposit and withdrawal. That&apos;s
-          it.
+          GranEverest runs a single public ETH vault on Base mainnet. Deposit
+          ETH as collateral, borrow ETH at <b>0% interest</b> and repay when you
+          choose. No price oracle, no liquidation engine, and a single{" "}
+          <b>0.25%</b> protocol fee on deposit and withdrawal.
         </p>
         <p className="center small credit-line-tag">
-          An ETH credit line that can&apos;t liquidate you.
+          One vault. Clear rules. Designed to be easy to reason about.
         </p>
 
         <p className="center" style={{ marginTop: 12 }}>
@@ -211,24 +180,28 @@ export default function Home() {
         {/* Features */}
         <section id="features" className="features">
           <article className="feature">
-            <h3>0% interest (ETH)</h3>
+            <h3>0% interest in ETH</h3>
             <p className="small">
-              No interest on collateral or debt. Your debt doesn&apos;t grow
-              over time; you repay exactly what you borrowed.
+              Debt is denominated in ETH. There is no protocol interest rate:
+              you repay exactly what you borrowed, plus gas. Borrow and repay
+              have no protocol fee.
             </p>
           </article>
           <article className="feature">
-            <h3>No liquidation risk</h3>
+            <h3>No liquidation engine</h3>
             <p className="small">
-              No oracle and no liquidation engine. As long as you respect the
-              70% LTV limit, the protocol can&apos;t liquidate you.
+              The vault has no liquidation bots or auctions. A{" "}
+              <b>70% loan-to-value</b> limit is enforced on-chain. If LTV would
+              exceed 70%, new borrows or withdrawals simply revert.
             </p>
           </article>
           <article className="feature">
-            <h3>Transparent costs</h3>
+            <h3>On-chain, transparent costs</h3>
             <p className="small">
-              A single protocol fee of <b>0.25%</b> on deposit &amp; withdrawal.
-              No variable interest, no changing parameters.
+              Collateral lives directly in the vault on Base. A single{" "}
+              <b>0.25% fee</b> applies on deposit and withdrawal only. All
+              transactions are visible on BaseScan, and canonical addresses are
+              listed on the <Link href="/trust">Trust</Link> page.
             </p>
           </article>
         </section>
@@ -238,20 +211,25 @@ export default function Home() {
           <h2>How it works</h2>
           <ol className="small">
             <li>
-              <b>Deposit ETH.</b> It stays on-chain and defines your borrow
-              limit (70% LTV).
+              <b>Connect on Base.</b> Open <b>graneverest.com</b>, connect your
+              wallet and switch to Base if needed. Interactions on other
+              networks are blocked.
             </li>
             <li>
-              <b>Borrow ETH at 0%.</b> Your debt unit is ETH. No interest.
-              Borrow/repay have no protocol fee.
+              <b>Deposit ETH as collateral.</b> Deposits are held on-chain in
+              the vault and define your borrow limit (up to 70% LTV). A 0.25%
+              protocol fee applies on each deposit.
             </li>
             <li>
-              <b>Repay to withdraw.</b> Withdraw collateral after repaying
-              enough to keep LTV ≤ 70%.
+              <b>Borrow at 0% interest.</b> Choose how much ETH to borrow within
+              your limit. The interface helps you stay within conservative
+              ranges and shows your projected position.
             </li>
             <li>
-              <b>UI guard.</b> The app explains why re-depositing borrowed ETH
-              doesn&apos;t give extra cash.
+              <b>Receive ETH directly.</b> Borrowed ETH is fully non-custodial
+              and can be moved or used elsewhere on Base. When you are ready to
+              exit, repay and withdraw collateral at any time, subject to the
+              same 70% LTV bound and a 0.25% withdrawal fee.
             </li>
           </ol>
         </section>
@@ -259,20 +237,51 @@ export default function Home() {
         {/* FAQ */}
         <section id="faq" style={{ marginTop: 28 }}>
           <h2>FAQ</h2>
+
           <details className="feature" style={{ marginTop: 10 }}>
-            <summary>Why can’t I loop borrowed ETH for more cash?</summary>
+            <summary>Where do funds live?</summary>
             <p className="small">
-              The UI guard blocks deposit+borrow same-block loops and explains
-              required repay amounts.
+              Deposited ETH is held directly in the GranEverest vault contract
+              on Base mainnet. You interact with the same contracts that are
+              listed on the <Link href="/trust">Trust &amp; security</Link>{" "}
+              page. The app is a convenience layer on top of those contracts.
             </p>
           </details>
+
           <details className="feature" style={{ marginTop: 10 }}>
             <summary>What fees apply?</summary>
             <p className="small">
-              Only 0.25% on deposit/withdraw. Borrow &amp; repay have no
-              protocol fee. Users pay gas.
+              The protocol charges a <b>0.25% fee</b> on deposit and withdrawal
+              only. Borrow and repay have no protocol fee. As with any on-chain
+              system, users also pay their own gas costs on Base for each
+              transaction.
             </p>
           </details>
+
+          <details className="feature" style={{ marginTop: 10 }}>
+            <summary>Can the protocol liquidate my position?</summary>
+            <p className="small">
+              The vault has no liquidation engine and does not perform
+              price-based liquidations. Instead, it enforces a 70% LTV cap on
+              new borrows and withdrawals. You remain responsible for managing
+              your own risk in ETH terms.
+            </p>
+          </details>
+
+          <details className="feature" style={{ marginTop: 10 }}>
+            <summary>What are the main risks?</summary>
+            <p className="small">
+              As with any smart contract on an L2, there is{" "}
+              <b>technical risk</b> (bugs, vulnerabilities),{" "}
+              <b>operational risk</b> (pause controls, key management) and{" "}
+              <b>network risk</b> (Base or Ethereum issues). The{" "}
+              <Link href="/trust">Trust &amp; security</Link> page and{" "}
+              <Link href="/docs">Docs</Link> describe these areas and how the
+              system is tested. Users should size positions conservatively and
+              never deposit funds they cannot afford to lose.
+            </p>
+          </details>
+
           <p className="center" style={{ marginTop: 18 }}>
             <LaunchButton />
           </p>
@@ -321,7 +330,7 @@ export default function Home() {
       {/* Global styles for landing */}
       <style jsx global>{`
         :root {
-          /* LIGHT theme defaults (page se ve blanca por defecto) */
+          /* LIGHT theme defaults */
           --bg: #ffffff;
           --text: #111;
           --muted: #666;
@@ -407,6 +416,7 @@ export default function Home() {
           font-size: 14px;
           line-height: 1;
           cursor: pointer;
+          white-space: nowrap;
         }
 
         .center {
@@ -423,7 +433,6 @@ export default function Home() {
           width: 100%;
           height: auto;
           display: inline-block;
-          /* corrimiento a la derecha para centrar la montaña visualmente */
           transform: translateX(18px);
         }
 

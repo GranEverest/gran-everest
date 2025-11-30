@@ -1,9 +1,9 @@
-// web/src/wagmi.ts
 "use client";
 
 import { createConfig, createStorage, http } from "wagmi";
 import { base, baseSepolia } from "wagmi/chains";
 import { injected, walletConnect } from "wagmi/connectors";
+import { CHAIN, BASE, BASE_SEPOLIA } from "@/chain";
 
 // --- Storage en memoria (NO usa localStorage, ni cookies, ni nada del navegador) ---
 const memoryStore: Record<string, string> = {};
@@ -25,8 +25,7 @@ const memoryStorage = createStorage({
 });
 
 // --- WalletConnect projectId (opcional) ---
-// Sacás este ID del panel de WalletConnect v2 y lo ponés en .env.local como
-// NEXT_PUBLIC_WC_PROJECT_ID=xxxxx
+// NEXT_PUBLIC_WC_PROJECT_ID=xxxxx en .env.local
 const wcProjectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID;
 
 // Armamos lista de connectors dinámica (para no romper si falta el projectId)
@@ -54,6 +53,15 @@ const connectors = [
     : []),
 ];
 
+// --- RPCs usando la config de chain.ts (respeta NEXT_PUBLIC_CHAIN y NEXT_PUBLIC_RPC_URL) ---
+const MAINNET_RPC =
+  (CHAIN.id === 8453 ? CHAIN : BASE).rpcUrls.default.http[0] ||
+  "https://mainnet.base.org";
+
+const SEPOLIA_RPC =
+  (CHAIN.id === 84532 ? CHAIN : BASE_SEPOLIA).rpcUrls.default.http[0] ||
+  "https://sepolia.base.org";
+
 // --- Config único de wagmi para GranEverest ---
 export const config = createConfig({
   // Soportamos Base mainnet y Base Sepolia
@@ -61,10 +69,10 @@ export const config = createConfig({
 
   connectors,
 
-  // RPCs por defecto de wagmi para cada chain
+  // Transports usando los RPCs calculados arriba
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
+    [base.id]: http(MAINNET_RPC),
+    [baseSepolia.id]: http(SEPOLIA_RPC),
   },
 
   // Usamos storage en memoria para evitar bugs de Safari con localStorage

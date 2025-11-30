@@ -4,7 +4,7 @@
  * - Permite override del RPC con NEXT_PUBLIC_RPC_URL
  */
 
-type ChainLike = {
+export type ChainLike = {
   id: number;
   name: string;
   nativeCurrency: { name: string; symbol: string; decimals: number };
@@ -34,7 +34,10 @@ export const BASE_SEPOLIA: ChainLike = {
     public: { http: ["https://sepolia.base.org"] },
   },
   blockExplorers: {
-    default: { name: "BaseScan (Sepolia)", url: "https://sepolia.basescan.org" },
+    default: {
+      name: "BaseScan (Sepolia)",
+      url: "https://sepolia.basescan.org",
+    },
   },
 };
 
@@ -63,6 +66,13 @@ export const CHAIN: ChainLike = withRpcOverride(
   CHAINS[ENV_CHAIN as keyof typeof CHAINS] ?? BASE
 );
 
-// Helpers útiles
 export const IS_MAINNET = CHAIN.id === 8453;
-export type { ChainLike as ChainConfig };
+
+/**
+ * RPC principal de la chain seleccionada (ya con override si existe).
+ */
+export const ACTIVE_RPC_URL =
+  (CHAIN.rpcUrls?.default?.http?.[0] as string | undefined) ||
+  "https://mainnet.base.org";
+
+export type ChainConfig = ChainLike;
