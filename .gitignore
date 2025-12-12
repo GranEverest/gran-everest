@@ -42,3 +42,8 @@ next-env.d.ts
 
 /cache
 /broadcast
+
+# foundry / contracts artifacts
+/contracts/cache
+/contracts/broadcast
+/contracts/out
