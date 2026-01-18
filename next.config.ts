@@ -1,13 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /* config options here */
   typescript: {
+    // !! IMPORTANTE: Ignora errores de tipado para poder desplegar YA !!
     ignoreBuildErrors: true,
   },
   eslint: {
+    // !! IMPORTANTE: Ignora errores de estilo para poder desplegar YA !!
     ignoreDuringBuilds: true,
   },
-  // ¡SIN REWRITES! Dejamos que app/api/proxy maneje todo.
 };
 
 export default nextConfig;
