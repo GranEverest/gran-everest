@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 5, 5, 5;
+  --background-end-rgb: 5, 5, 5;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-start-rgb));
+  min-height: 100vh;
+}
+
+/* Ocultar scrollbar pero permitir scroll funcional */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* --- ANIMACIÓN TICKER WALL STREET --- */
+@keyframes ticker-slide {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); } /* Se mueve la mitad para loopear */
+}
+
+.animate-ticker {
+  animation: ticker-slide 60s linear infinite; /* 60s para movimiento fluido */
+  will-change: transform; /* Optimización de rendimiento */
+}
+
+.animate-ticker:hover {
+  animation-play-state: paused;
+}
