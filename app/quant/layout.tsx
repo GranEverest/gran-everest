@@ -19,8 +19,9 @@ export default function QuantLayout({ children }: { children: React.ReactNode })
   const { lang } = useLang();
 
   const t = {
-    en: { back: "RETURN TO TERMINAL", badge: "QUANTITATIVE LAB", live: "LIVE FEED", tab_btc: "BTC MARKET", tab_eth: "ETHEREUM INTELLIGENCE" },
-    es: { back: "VOLVER A TERMINAL", badge: "LAB CUANTITATIVO", live: "FEED EN VIVO", tab_btc: "MERCADO BTC", tab_eth: "INTELIGENCIA ETHEREUM" }
+    // AQUÍ ESTÁ EL CAMBIO DE NOMBRE:
+    en: { back: "RETURN TO TERMINAL", badge: "QUANTITATIVE LAB", live: "LIVE FEED", tab_btc: "BTC INTELLIGENCE", tab_eth: "ETHEREUM INTELLIGENCE" },
+    es: { back: "VOLVER A TERMINAL", badge: "LAB CUANTITATIVO", live: "FEED EN VIVO", tab_btc: "INTELIGENCIA BTC", tab_eth: "INTELIGENCIA ETHEREUM" }
   };
   const text = t[lang as keyof typeof t] || t.en;
 
